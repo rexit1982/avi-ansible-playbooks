@@ -1,0 +1,36 @@
+---
+# Cluster IP for Avi Controller
+controller_cluster_ip: 172.16.20.20
+
+# Controller Credentials
+avi_credentials:
+  controller: "{{ controller_cluster_ip }}" # This can be either cluster ip or the ip of the leader controller.
+  username: "<user>"
+  password: "<password>"
+  api_version: "22.1.6"
+
+# Number of days to keep backups
+days_old: 1
+# Cleanup will enumerate but skip delete actions
+dry_run: false
+# Enable/Disable extra informative messages
+debug: true
+# --- S3 Configuration ---
+# Enable/Disable s3 object cleanup
+s3_cleanup: true
+# The endpoint URL of your S3-compatible object store (e.g., MinIO, Ceph RGW)
+s3_endpoint_url: "https://s3:9000" # <-- REPLACE THIS
+s3_bucket_name: "avibucket" # <-- REPLACE THIS
+s3_access_key: "minioadmin" # <-- REPLACE THIS (AND USE VAULT!)
+s3_secret_key: "minioadmin" # <-- REPLACE THIS (AND USE VAULT!)
+s3_region_name: "EAST"      # <-- REPLACE THIS
+
+# --- Local Backup Configuration ---
+# Enable/Disable storing a copy of the back on the local filesystem
+local_backup: true
+# Enable/Disable cleanup of local backup files
+local_cleanup: true
+# Directory to save the backup file on the Ansible control node
+local_backup_directory: "/tmp/avi_backups"
+# File format for the backup (AVI exports JSON by default for config export API)
+backup_file_extension: "json"

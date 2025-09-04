@@ -1,0 +1,205 @@
+##
+##   Filename: avibackup.yml
+##   Desc: Backup avi controller configuration to a file.
+##   Requires pip: avisdk boto3 botocore
+##   Requires ansible: vmware.alb amazon.aws >= 9.2.0
+##
+---
+- name: avis3backup.yml
+  hosts: localhost
+  connection: local
+#  environment:
+#    PYTHONWARNINGS: "ignore:Unverified HTTPS request"
+  vars_files:
+    avis3backup_var.yml
+  tasks:
+
+    - name: Generate timestamps and empty facts
+      ansible.builtin.set_fact:
+        current_time: "{{ ansible_date_time.iso8601 }}"
+        short_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+        old_s3_objects: []
+
+    - name: Generate backup file name
+      ansible.builtin.set_fact:
+        backup_file: "{{ controller_cluster_ip }}_{{ short_timestamp }}.{{ backup_file_extension }}"
+
+    - name: Export AVI Controller configuration
+      vmware.alb.avi_api_session:
+        avi_credentials: "{{ avi_credentials }}"
+        http_method: get
+        path: "configuration/export"
+        params:
+          full_system: true
+      register: avi_export_result
+
+# S3 Backup
+
+    - name: S3 BACKUP - Construct the S3 object key (path within the bucket)
+      ansible.builtin.set_fact:
+        s3_object_key: "{{ controller_cluster_ip }}/{{ backup_file }}"
+
+    - name: S3 BACKUP - Put content to S3-compatible object store
+      amazon.aws.s3_object:
+        bucket: "{{ s3_bucket_name }}"
+        object: "{{ s3_object_key }}"
+        content_base64: "{{ avi_export_result.obj | to_nice_json | b64encode }}"
+        mode: put # Use 'put' for simple file upload
+        endpoint_url: "{{ s3_endpoint_url }}" # Crucial for non-AWS S3-compatible services
+        aws_access_key: "{{ s3_access_key }}"
+        aws_secret_key: "{{ s3_secret_key }}"
+        encrypt: false
+        # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
+        validate_certs: no
+        # region: "{{ s3_region_name }}" # A dummy region name might be required by boto3 for some services, even if not used.
+      register: s3_upload_result
+
+    - name: S3 BACKUP - Display S3 upload result
+      ansible.builtin.debug:
+        msg: "Saved backup successfully to '{{ s3_endpoint_url }}/{{ s3_bucket_name }}/{{ s3_object_key }}'."
+      when: s3_upload_result is success
+
+# S3 Cleanup
+
+    - name: S3 CLEANUP - Get objects in S3 bucket
+      amazon.aws.s3_object_info:
+        bucket_name: "{{ s3_bucket_name }}"
+        endpoint_url: "{{ s3_endpoint_url }}" # Crucial for non-AWS S3-compatible services
+        aws_access_key: "{{ s3_access_key }}"
+        aws_secret_key: "{{ s3_secret_key }}"
+        # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
+        validate_certs: no
+        # region: "{{ s3_region_name }}" # A dummy region name might be required by boto3 for some services, even if not used.
+        prefix: "{{ controller_cluster_ip }}/"
+        object_details:
+          object_attributes: true
+          attributes_list:
+            - ObjectSize
+      register: s3_objects_list
+      when:
+        - s3_cleanup
+        - s3_upload_result is success
+
+    - name: S3 CLEANUP - DEBUG - Display s3 items
+      ansible.builtin.debug:
+        msg: "{{ s3_objects_list }}"
+      when:
+        - debug
+        - s3_cleanup
+        - s3_upload_result is success
+
+    - name: S3 CLEANUP - Build old objects list
+      ansible.builtin.set_fact:
+        old_s3_objects: "{{ old_s3_objects + [item.object_name] }}"
+      loop: "{{ s3_objects_list.object_info }}"
+      when:
+        - s3_cleanup
+        - s3_upload_result is success
+        - (current_time | to_datetime('%Y-%m-%dT%H:%M:%S%z') - item.object_data.last_modified | to_datetime('%Y-%m-%dT%H:%M:%S%z')).days > days_old
+
+    - name: S3 CLEANUP - DEBUG - Display old s3 item list
+      ansible.builtin.debug:
+        msg: "{{ old_s3_objects }}"
+      when:
+        - debug
+        - s3_cleanup
+        - s3_upload_result is success
+
+    - name: S3 CLEANUP - Delete aged out backup file
+      amazon.aws.s3_object:
+        bucket: "{{ s3_bucket_name }}"
+        object: "{{ item }}"
+        mode: delobj
+        endpoint_url: "{{ s3_endpoint_url }}" # Crucial for non-AWS S3-compatible services
+        aws_access_key: "{{ s3_access_key }}"
+        aws_secret_key: "{{ s3_secret_key }}"
+        encrypt: false
+        # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
+        validate_certs: no
+        # region: "{{ s3_region_name }}" # A dummy region name might be required by boto3 for some services, even if not used.
+      loop: "{{ old_s3_objects }}"
+      when:
+        - s3_cleanup
+        - s3_upload_result is success
+        - not dry_run
+
+# Local Backup
+
+    - name: LOCAL BACKUP - Construct the full backup file path
+      ansible.builtin.set_fact:
+        full_backup_path: "{{ local_backup_directory }}/{{ controller_cluster_ip }}/{{ backup_file }}"
+      when: local_backup
+
+    - name: LOCAL BACKUP - Create backup directory if needed
+      ansible.builtin.file:
+        path: "{{ local_backup_directory }}/{{ controller_cluster_ip }}"
+        state: directory
+        mode: '0755'
+      when: local_backup
+
+    - name: LOCAL BACKUP - Save the exported configuration to a local file
+      ansible.builtin.copy:
+        content: "{{ avi_export_result.obj | to_nice_json }}"
+        dest: "{{ full_backup_path }}"
+        mode: '0644' # Read/write for owner, read-only for group/others
+      delegate_to: localhost
+      register: local_backup_result
+      when: local_backup
+
+    - name: LOCAL BACKUP - DEBUG Display local backup result
+      ansible.builtin.debug:
+        msg: "{{ local_backup_result }}"
+      when:
+        - local_backup
+        - debug
+
+    - name: LOCAL BACKUP - Display local backup success message
+      ansible.builtin.debug:
+        msg: "AVI configuration backed up locally to {{ full_backup_path }}"
+      when:
+        - local_backup
+        - local_backup_result.size > 0
+
+# Local File Cleanup
+
+    - name: LOCAL CLEANUP - Collect list of backup files
+      ansible.builtin.find:
+        paths: "{{ local_backup_directory }}/{{ controller_cluster_ip }}"
+        file_type: file
+        recurse: false
+        age: "{{ days_old }}d"
+      register: old_local_backup_files
+      when:
+        - local_backup
+        - local_cleanup
+        - local_backup_result.size > 0
+
+    - name: LOCAL CLEANUP - DEBUG - Display date
+      ansible.builtin.debug:
+        msg: "{{ days_old }}d"
+      when:
+        - debug
+        - local_backup
+        - local_cleanup
+        - local_backup_result.size > 0
+
+
+    - name: LOCAL CLEANUP - DEBUG - Display old backup files
+      ansible.builtin.debug:
+        msg: "{{ old_local_backup_files }}"
+      when:
+        - debug
+        - local_backup
+        - local_cleanup
+        - local_backup_result.size > 0
+
+    - name: LOCAL CLEANUP - Delete old local backups
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_local_backup_files.files }}"
+      when:
+        - local_backup
+        - local_cleanup
+        - not dry_run
+        - local_backup_result.size > 0

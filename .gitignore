@@ -1,0 +1,6 @@
+.vscode
+*_var.yml
+
+
+# Ensure the following files below are EXCLUDED from the matching .gitignore files above, and thus, ARE replicated to the repo.
+!*var_sample.yml
