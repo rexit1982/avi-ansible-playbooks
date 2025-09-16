@@ -74,7 +74,7 @@
         object_details:
           object_attributes: true
           attributes_list:
-            - ObjectSize
+            - "ObjectSize"
       register: s3_objects_list
       when:
         - s3_cleanup
