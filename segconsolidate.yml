@@ -1,0 +1,24 @@
+##
+##   Filename: segconsolidate.yml
+##   Desc: Consolidate VS spread between 2 automtaically named SEGs to a single one.
+##   Requires pip: avisdk
+##   Requires ansible: vmware.alb 
+##
+---
+- name: segconsolidate.yml
+  hosts: localhost
+  connection: local
+#  gather_facts: false
+  vars_files:
+    segconsolidate_var.yml
+  tasks:
+    - name: Check Credentials with version fetch
+      vmware.alb.avi_api_version:
+        avi_credentials: '{{ avi_credentials}}'      
+    - name: Loop through cluster_list
+      include_tasks: segconsolidate_tasks.yml
+      loop: "{{ lookup( 'file' , '{{ cluster_list }}').splitlines() }}"
+      loop_control:
+        loop_var: cluster_name
+
+ 

@@ -1,0 +1,109 @@
+##
+##   Filename: segconsolidate_tasks.yml
+##   Desc: Include_tasks file to allow looping a block.  Keeps the main playbook running if an individual item from the srouce list fails.
+##   Called By: segconsolidate.yml
+##   Requires pip: avisdk
+##   Requires ansible: vmware.alb 
+##
+
+- block:
+    - name: Build VS and SEG names from cluster name
+      set_fact:
+        api_vs_name: '{{ cluster_name }}-api_vs'
+        api_int_vs_name: '{{ cluster_name }}-api_int_vs'
+        src_seg_name: '{{ cluster_name }}-api-seg'
+        dst_seg_name: '{{ cluster_name }}-apps-seg'
+    - name: DEBUG - Display names
+      ansible.builtin.debug:
+        msg: '{{ item }}'
+      loop:
+        - '{{ api_vs_name }}'
+        - '{{ api_int_vs_name }}'
+        - '{{ src_seg_name }}'
+        - '{{ dst_seg_name }}'
+      when: debug
+    - name: Get API VS details
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: get
+        path: 'virtualservice?name={{ api_vs_name }}'
+        params:
+          fields:
+            - uuid
+            - url
+            - name
+      register: api_vs_detail
+      failed_when: api_vs_detail.obj.count != 1
+    - name: DEBUG - API VS Detail
+      ansible.builtin.debug:
+        msg: '{{ api_vs_detail }}'
+      when: debug
+    - name: Get API INT VS details
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: get
+        path: 'virtualservice?name={{ api_int_vs_name }}'
+        params:
+          fields:
+            - uuid
+            - url
+            - name
+      register: api_int_vs_detail
+      failed_when: api_int_vs_detail.obj.count != 1
+    - name: DEBUG - API INT VS Detail
+      ansible.builtin.debug:
+        msg: '{{ api_int_vs_detail }}'
+      when: debug
+    - name: Get DST SEG Details
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: get
+        path: 'serviceenginegroup/?name={{ dst_seg_name }}'
+        params:
+          fields:
+            - uuid
+            - url
+            - name
+      register: dst_seg_detail
+      failed_when: dst_seg_detail.obj.count != 1
+    - name: DEBUG - DST SEG Detail
+      ansible.builtin.debug:
+        msg: '{{ dst_seg_detail }}'
+      when: debug
+    - name: Build patch payload
+      ansible.builtin.set_fact:
+        patch_data:
+          json_patch:
+            - op: replace
+              path: /se_group_ref
+              value: '{{ dst_seg_detail.obj.results[0].url }}'
+    - name: DEBUG - Payload
+      ansible.builtin.debug:
+        msg: '{{ patch_data }}'
+      when: debug
+    - name: Change API VS SEG
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: patch
+        path: 'virtualservice/{{ api_vs_detail.obj.results[0].uuid }}'
+        data: '{{ patch_data | to_json }}'
+      register: api_vs_result
+    - name: DEBUG - API VS Change result
+      ansible.builtin.debug:
+        msg: '{{ api_vs_name }} changed: {{ api_vs_result.changed }}'
+      when: debug
+    - name: Change API INT VS SEG
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: patch
+        path: 'virtualservice/{{ api_int_vs_detail.obj.results[0].uuid }}'
+        data: '{{ patch_data | to_json }}'
+      register: api_int_vs_result
+    - name: DEBUG - API VS Change result
+      ansible.builtin.debug:
+        msg: '{{ api_int_vs_name }} changed: {{ api_int_vs_result.changed }}'
+      when: debug
+  rescue:
+    - name: Block Rescue
+      ansible.builtin.debug:
+        msg: 'ERROR ON CLUSTER {{ cluster_name }}'

@@ -1,0 +1,41 @@
+
+avi_controllers:
+  vars:
+    dns_servers: [ 172.16.20.1 ]
+    ntp_servers: [ '0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org' ]
+    ntp_type: "DNS"  #If servers are hostname use type "DNS", if IP use type "V4" 
+    #Default Resource allocation for controllers. (S - 6/32/512GB, L - 16/48/1.4TB, XL 16/64/1.75TB)
+    num_cpu: 6
+    mem_size: 32768
+    disk_size: 512
+    disk_mode: "thin"
+  children:
+    avi_prod_controllers:
+      vars:
+      hosts:
+        dc1prd1:
+          cluster_name: "TestCluster"
+          cluster_vip: "172.16.20.50"
+          node1:
+            name: "prdcon1"
+            ip: "172.16.20.51"
+          node2:
+            name: "prdcon2"
+            ip: "172.16.20.52"
+          node3:
+            name: "prdcon3"
+            ip: "172.16.20.53"
+    avi_dev_controllers:
+      vars:
+      hosts:
+        dc1dev1:
+          vip:
+          node1:
+            name:
+            ip:
+          node2:
+            name:
+            ip:
+          node3:
+            name:
+            ip:        

@@ -1,0 +1,46 @@
+---
+vcenter:
+  vcenter_url: "<vchostname>"
+  username: "administrator@vsphere.local"
+  password: "<password>"
+ovftool_path: "/path/to/ovftool"
+ova_path: "/path/to/controller-30.2.3-9116.ova"
+datacenter: "vSAN-Datacenter"
+cluster: "vSAN-Cluster"
+datastore: "vm-0"
+disk_mode: "thin"
+mgmt_network: "SvrStat-501-172.16.20.0_24"
+power_on: "true"
+vcenter_folder: "tstcon"
+#disk_size: ""
+
+api_version: "22.1.6"
+default_avi_pw: "<password>"
+avi_admin_pw: "<password>"
+avi_backup_pass: "<password>"
+
+netmask: "255.255.255.0"
+default_gw: "172.16.20.1"
+
+ctl_cluster_name: "TestCluster"
+ctl_cluster_vip: "172.16.20.50"
+
+
+controller1:
+  name: "tstcon1"
+  mgmt_ip: "172.16.20.51"
+controller2:
+  name: "tstcon2"
+  mgmt_ip: "172.16.20.52"
+controller3:
+  name: "tstcon3"
+  mgmt_ip: "172.16.20.53"
+
+# Avi System Configuration
+#
+# DNS variables
+dns_servers: [ 172.16.20.1 ]
+
+# NTP variables
+ntp_servers: [ '0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org' ]
+ntp_type: "DNS"  #If servers are hostname use type "DNS", if IP use type "V4"
