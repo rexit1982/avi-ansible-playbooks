@@ -3,39 +3,39 @@
 ##   Desc: Include_tasks file to allow looping a block.  Keeps the main playbook running if an individual item from the srouce list fails.
 ##   Called By: avi_adv_cluster_deploy.yml
 ##   Requires pip: avisdk
-##   Requires ansible: vmware.alb 
+##   Requires ansible: vmware.alb
 ##
-
-- block:
-  - name: Validate CA Cert
-    ansible.builtin.uri:
+- name: CA Upload Block
+  block:
+   - name: Validate CA Cert
+     ansible.builtin.uri:
       method: POST
       url: "{{ 'https://' + CONTROLLER_IP_1 + '/api/sslkeyandcertificate/validate' }}"
-      validate_certs: no
+      validate_certs: false
       headers: "{{ avi_auth_headers }}"
       body_format: json
       body:
-        certificate: "{{ lookup('file', ca_cert.path)  }}"
-        certificate_base64: false
-        key_base64: true
+       certificate: "{{ lookup('file', ca_cert.path) }}"
+       certificate_base64: false
+       key_base64: true
       status_code: 201
-      return_content: yes
-    register: CACert_Validate
-  - name: DEBUG: Print CA Cert
-    ansible.builtin.debug:
-      var: CACert_Validate
-    when: debug
-  - name: Upload CA Cert
-      vmware.alb.avi_sslkeyandcertificate:
-        controller: "{{ CONTROLLER_IP_1 }}"
-        username: "{{ AVI_CREDENTIALS.username }}"
-        password: "{{ AVI_CREDENTIALS.password }}"
-        api_version: "{{ AVI_CREDENTIALS.api_version }}"
-        certificate:
-          certificate: "{{ lookup('file', ca_cert.path ) }}"
-        type: SSL_CERTIFICATE_TYPE_CA
-        name: "{{ ca_cert.name }}"
+      return_content: true
+     register: ca_cert_validate
+   - name: DEBUG Print CA Cert
+     ansible.builtin.debug:
+      var: ca_cert_validate
+     when: debug
+   - name: Upload CA Cert
+     vmware.alb.avi_sslkeyandcertificate:
+      controller: "{{ CONTROLLER_IP_1 }}"
+      username: "{{ AVI_CREDENTIALS.username }}"
+      password: "{{ AVI_CREDENTIALS.password }}"
+      api_version: "{{ AVI_CREDENTIALS.api_version }}"
+      certificate:
+       certificate: "{{ lookup('file', ca_cert.path) }}"
+      type: SSL_CERTIFICATE_TYPE_CA
+      name: "{{ ca_cert.name }}"
   rescue:
-    - name: Block Rescue
-      ansible.builtin.debug:
-        msg: 'ERROR ON CERT {{ ca_cert.name }}'
+   - name: Block Rescue
+     ansible.builtin.debug:
+      msg: 'ERROR ON CERT {{ ca_cert.name }}'

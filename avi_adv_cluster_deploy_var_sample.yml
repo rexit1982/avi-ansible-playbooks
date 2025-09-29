@@ -25,7 +25,7 @@ CONTROLLER_IP_2: 172.16.20.52
 CONTROLLER_IP_3: 172.16.20.53
 CONTROLLER_CLUSTER_NAME: "Cluster_Name"
 
-# Controller Size 
+# Controller Size
 # CPU/Memory/Disk for controller; if not defined, they're 8cpus/24GB/128GB by default
 CON_NUMBER_OF_CPUS: 83
 # Mem in MB
@@ -36,13 +36,13 @@ CON_DISK_SIZE: 128
 CON_DISK_MODE: "thick"
 
 # Controller Default Password
-AVI_FACTORY_PASSWORD: "avi_default" #You don't need to change.
+AVI_FACTORY_PASSWORD: "avi_default" # You don't need to change.
 
 # Controller Configuration Details
-DNS_SERVERS: [ 172.16.20.1,172.16.19.1 ]
-NTP_SERVERS: [ '0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org' ]
-NTP_TYPE: "DNS"  #If servers are hostname use type "DNS", if IP use type "V4"
-ADMIN_EMAIL: test_user@internal.lab   
+DNS_SERVERS: [172.16.20.1, 172.16.19.1]
+NTP_SERVERS: ['0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org']
+NTP_TYPE: "DNS"  # If servers are hostname use type "DNS", if IP use type "V4"
+ADMIN_EMAIL: test_user@internal.lab
 BACKUP_PASSPHRASE: "AviNetworks123!"
 
 # --------------------------------------------------------------------
@@ -63,7 +63,7 @@ VMWARE_DATACENTER: "vCenter_Datacenter"
 VMWARE_CLUSTER_NAME: "cluster_name"
 VMWARE_DATASTORE: "Datastore_for_controller"
 CON_FOLDER: "vcenter/folder/for/your/controller"
-OVFTOOL_PATH: "/path/to/ovftool" 
+OVFTOOL_PATH: "/path/to/ovftool"
 
 # Controller OVA Image Location
 OVA_PATH: "/path/to/controller-30.2.3-9116.ova"
@@ -83,14 +83,13 @@ CA_CERTS:
     path: "~/certs/intermed.cer"
 
 INSTALL_PORTAL_CERT: true
-PORTAL_CERT_NAME: portal-cert #<--- Need to agree on a standard name
+PORTAL_CERT_NAME: portal-cert # <--- Need to agree on a standard name
 PORTAL_CERT_PATH: "aviportal.hx.local.pfx"
 PORTAL_CERT_PASSPHRASE: "CERT_PASSPHRASE"
 AVI_PORTAL_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
 
 INSTALL_SC_CERT: true
-SC_CERT_NAME: sc-cert #<--- Need to agree on a standard name
+SC_CERT_NAME: sc-cert # <--- Need to agree on a standard name
 SC_CERT_PATH: "avisc.hx.local.pfx"
 SC_CERT_PASSPHRASE: "CERT_PASSPHRASE"
 AVI_SC_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
- 
