@@ -1,0 +1,272 @@
+##
+##   Filename: avi_cluster_deploy.yml
+##   Desc: Generic AVI cluster deployment and minimal config playbook.
+##   Requires pip: avisdk
+##   Requires ansible: vmware.alb 
+##   Requires bin: ovftool
+##
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  collections: 
+    - vmware.alb
+  vars_files:
+   - avi_adv_cluster_deploy_var.yml
+  vars:
+  controller_configuration:
+    - mgmt_ip: "{{ CONTROLLER_IP_1 }}"
+      vm_name: "{{ CONTROLLER_CLUSTER_NAME + '-ctl01' }}"
+    - mgmt_ip: "{{ CONTROLLER_IP_2 }}"
+      vm_name: "{{ CONTROLLER_CLUSTER_NAME + '-ctl02' }}"
+    - mgmt_ip: "{{ CONTROLLER_IP_3 }}"
+      vm_name: "{{ CONTROLLER_CLUSTER_NAME + '-ctl03' }}"
+  tasks:
+# Store DNS and NTP in needed format
+   - ansible.builtin.set_fact:
+        dns_list: "{{ dns_list | default([]) + [{'type': 'V4', 'addr': dserver }] }}"
+     loop: "{{ DNS_SERVERS }}"
+     loop_control:
+        loop_var: dserver
+     name: "Prepare DNS Server List"
+     tags:
+       - avictlconfig
+   - ansible.builtin.set_fact:
+        ntp_list: "{{ ntp_list | default([]) + [{'server': {'type': ntp_type, 'addr': nserver }}] }}"
+     loop: "{{ NTP_SERVERS }}"
+     loop_control:
+        loop_var: nserver
+     name: "Prepare NTP Server List"
+     tags:
+       - avictlconfig
+# Deploy controller VMs
+   - name: Deploy Avi Controller
+     vmware.alb.avi_deploy_controller:
+       ovftool_path: "{{ OVFTOOL_PATH }}"
+       vcenter_host: "{{ VCENTER_HOST }}"
+       vcenter_user: "{{ VCENTER_USER }}"
+       vcenter_password: "{{ VCENTER_PASSWORD }}"
+       con_datacenter: "{{ VMWARE_DATACENTER }}"
+       con_cluster: "{{ VMWARE_CLUSTER_NAME }}"
+       con_ova_path: "{{ OVA_PATH }}"
+       con_vm_name: "{{ item.vm_name }}"
+       con_number_of_cpus: "{{ CON_NUMBER_OF_CPUS | default('8') }}"
+       con_memory: "{{ CON_MEMORY | default('24576') }}"
+       con_disk_size: "{{ CON_DISK_SIZE | default('128') }}"
+       con_disk_mode: "{{ CON_DISK_MODE | default('thick') }}"
+       con_vcenter_folder: "{{ CON_FOLDER }}"
+       con_datastore: "{{ VMWARE_DATASTORE }}"
+       con_mgmt_network: "{{ CON_MGMT_PORTGROUP }}"
+       con_power_on: true
+       con_mgmt_ip: "{{ item.mgmt_ip }}"
+       con_mgmt_mask: "{{ CON_MGMT_MASK }}"
+       con_default_gw: "{{ CON_DEFAULT_GW }}"
+     loop: "{{ controller_configuration }}"
+     tags:
+        - avictldeploy
+   - name: Wait for Controllers be ready
+     ansible.builtin.uri:
+       url: "https://{{ item.mgmt_ip }}/api/cluster/runtime"
+       validate_certs: false
+     register: url
+     retries: 120
+     delay: 20
+     until:
+       - "url.json is defined"
+       - "url.json['cluster_state']['state'] in ['CLUSTER_UP_HA_ACTIVE', 'CLUSTER_UP_NO_HA']"
+     ignore_errors: yes
+     loop: "{{ controller_configuration }}"
+     tags:
+        - avictldeploy
+        - avictlconfig
+# Start Configuring Cluster
+# Only update the password and config on the first/primary controller
+# avi_cluster module assumes default password on the controllers to be added.   
+   - name: Update the admin user password
+     vmware.alb.avi_useraccount:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "admin"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       old_password: "{{ AVI_FACTORY_PASSWORD }}"
+       force_change: false
+     tags:
+       - avictlpassword
+       - avictlconfig
+   - name: Initial controller system config
+     vmware.alb.avi_systemconfiguration:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "{{ AVI_CREDENTIALS.username }}"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       state: present
+       welcome_workflow_complete: true
+       default_license_tier: ENTERPRISE
+       ntp_configuration:
+         ntp_servers: "{{ ntp_list }}"
+       dns_configuration:
+         server_list: "{{ dns_list }}"
+     tags:
+      - avictlconfig
+   - name: Set Backup Passphrase
+     vmware.alb.avi_backupconfiguration:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "{{ AVI_CREDENTIALS.username }}"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       name: Backup-Configuration
+       backup_passphrase: "{{ BACKUP_PASSPHRASE }}"
+       upload_to_remote_host: false
+     tags:
+      - avictlconfig
+# Start Optional pre-clustering tasks
+   - name: AVI Login
+     ansible.builtin.uri:
+       url: "{{ 'https://' + CONTROLLER_IP_1 + '/login' }}"
+       method: POST
+       body_format: json
+       body: 
+         username: "{{ AVI_CREDENTIALS.username }}"
+         password: "{{ AVI_CREDENTIALS.password }}"
+       status_code: 200
+       validate_certs: no
+     register: login_response 
+     when: INSTALL_CA_CERTS or INSTALL_SC_CERT or INSTALL_PORTAL_CERT
+   - name: Build AVI auth header
+     ansible.builtin.set_fact:
+       avi_auth_headers:
+         Referer: "{{ 'https://' + CONTROLLER_IP_1 }}"
+         Cookie: "{{ login_response.cookies_string }}"
+         X-CSRFTOKEN: "{{ login_response.cookies.csrftoken }}"
+         X-Avi-Version: "{{AVI_CREDENTIALS.api_version | default('20.1.1')}}"
+     when: INSTALL_CA_CERTS or INSTALL_SC_CERT or INSTALL_PORTAL_CERT
+   - name: Loop through CA cert installs
+     ansible.builtin.include_tasks: avi_adv_cluster_deploy_upldca_tasks.yml
+     loop: "{{ CA_CERTS }}"
+     loop_control:
+       loop_var: ca_cert
+       label: "{{ ca_cert.name }}"
+     when: INSTALL_CA_CERTS
+# Validate, upload and configure Portal Cert if enabled
+   - name: Validate PORTAL Certs
+     ansible.builtin.uri:
+       method: POST
+       url: "{{ 'https://' + CONTROLLER_IP_1 + '/api/sslkeyandcertificate/validate' }}"
+       validate_certs: no
+       headers: "{{ avi_auth_headers }}"
+       body_format: json
+       body:
+         key: "{{ lookup('file', PORTAL_CERT_PATH ) | ansible.builtin.b64encode }}"
+         certificate_base64: true
+         key_base64: true
+         key_passphrase: "{{ PORTAL_CERT_PASSPHRASE|default('omit') }}"
+       status_code: 201
+       return_content: yes
+     register: PortalCert_Validate
+     when: INSTALL_PORTAL_CERT     
+   - name: DEBUG: Print Portal Cert
+     ansible.builtin.debug:
+       var: PortalCert_Validate
+     when: DEBUG and INSTALL_PORTAL_CERT
+   - name: Upload/modify a Portal Key and Certificate
+     vmware.alb.avi_sslkeyandcertificate:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "{{ AVI_CREDENTIALS.username }}"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       certificate: "{{PortalCert_Validate.json.certificate}}"
+       key: "{{PortalCert_Validate.json.key}}"
+       key_params: "{{PortalCert_Validate.json.key_params}}"
+       key_passphrase: "{{ AVI_PORTAL_CERT_PASSPHRASE }}"
+       type: SSL_CERTIFICATE_TYPE_SYSTEM
+       name: "{{  PORTAL_CERT_NAME }}"
+     when: INSTALL_PORTAL_CERT     
+   - name: Apply Portal Cert to System config
+     vmware.alb.avi_systemconfiguration:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "{{ AVI_CREDENTIALS.username }}"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       avi_api_update_method: patch
+       avi_api_patch_op: replace
+       portal_configuration:
+         sslkeyandcertificate_refs:
+           - "{{'/api/sslkeyandcertificate?name=' + PORTAL_CERT_NAME }}"
+
+# Validate, upload and configure SC Cert if enabled
+   - name: Validate SC Certs
+     ansible.builtin.uri:
+       method: POST
+       url: "{{ 'https://' + CONTROLLER_IP_1 + '/api/sslkeyandcertificate/validate' }}"
+       validate_certs: no
+       headers: "{{ avi_auth_headers }}"
+       body_format: json
+       body:
+         key: "{{ lookup('file', SC_CERT_PATH ) | ansible.builtin.b64encode }}"
+         certificate_base64: true
+         key_base64: true
+         key_passphrase: "{{ SC_CERT_PASSPHRASE|default('omit') }}"
+       status_code: 201
+       return_content: yes
+     register: SCCert_Validate
+     when: INSTALL_SC_CERT     
+   - name: DEBUG: Print SC Cert
+     ansible.builtin.debug:
+       var: SCCert_Validate
+     when: DEBUG and INSTALL_SC_CERT
+   - name: Upload/modify a SC Key and Certificate
+     vmware.alb.avi_sslkeyandcertificate:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "{{ AVI_CREDENTIALS.username }}"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       certificate: "{{ SCCert_Validate.json.certificate }}"
+       key: "{{ SCCert_Validate.json.key }}"
+       key_params: "{{ SCCert_Validate.json.key_params }}"
+       key_passphrase: "{{ AVI_SC_CERT_PASSPHRASE }}"
+       type: SSL_CERTIFICATE_TYPE_SYSTEM
+       name: "{{ SC_CERT_NAME }}"
+     when: INSTALL_SC_CERT     
+   - name: Apply SC Cert to System config
+     vmware.alb.avi_systemconfiguration:
+       controller: "{{ CONTROLLER_IP_1 }}"
+       username: "{{ AVI_CREDENTIALS.username }}"
+       password: "{{ AVI_CREDENTIALS.password }}"
+       api_version: "{{ AVI_CREDENTIALS.api_version }}"
+       avi_api_update_method: patch
+       avi_api_patch_op: replace
+       secure_channel_configuration:
+         sslkeyandcertificate_refs:
+           - "{{'/api/sslkeyandcertificate?name=' + SC_CERT_NAME }}"
+     when: INSTALL_SC_CERT 
+
+
+#Cluster other two nodes
+   - name: Create controller cluster
+     vmware.alb.avi_cluster:
+       username: "admin"
+       password: "{{ avi_admin_pw }}"
+       controller: "{{ controller1.mgmt_ip }}"
+       api_version: "{{ api_version }}"
+       state: present
+       password: "{{ avi_admin_pw }}"
+       tenant_uuid: "admin"
+       name: "{{ ctl_cluster_name }}"
+       virtual_ip:
+         type: V4
+         addr: "{{ ctl_cluster_vip }}"
+       nodes:
+         - name: "{{ controller1.name }}"
+           ip:
+             type: V4
+             addr: "{{ controller1.mgmt_ip }}"
+         - name: "{{ controller2.name }}"
+           ip:
+             type: V4
+             addr: "{{ controller2.mgmt_ip }}"
+         - name: "{{ controller3.name }}"
+           ip:
+             type: V4
+             addr: "{{ controller3.mgmt_ip }}"
+     tags:
+       - avicreatecluster

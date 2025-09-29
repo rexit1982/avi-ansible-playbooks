@@ -1,0 +1,96 @@
+---
+# --------------------------------------------------------------------
+# Management Variables
+# Description: This are variables used for any type of ansible deployment.
+# --------------------------------------------------------------------
+debug: true
+# Cluster IP for Avi Controller
+CONTROLLER_CLUSTER_IP: 172.16.20.50
+
+# Controller Credentials
+AVI_CREDENTIALS:
+  controller: "{{ CONTROLLER_CLUSTER_IP }}" # This can be either cluster ip or the ip of the leader controller.
+  username: "admin"
+  password: "admin_password"
+  api_version: "22.1.6"
+
+# --------------------------------------------------------------------
+# Required Variables / Controller Deployments
+# Description: This are the main variables required for controller deployments.
+# --------------------------------------------------------------------
+
+# Controller Name and IP Addresses
+CONTROLLER_IP_1: 172.16.20.51
+CONTROLLER_IP_2: 172.16.20.52
+CONTROLLER_IP_3: 172.16.20.53
+CONTROLLER_CLUSTER_NAME: "Cluster_Name"
+
+# Controller Size 
+# CPU/Memory/Disk for controller; if not defined, they're 8cpus/24GB/128GB by default
+CON_NUMBER_OF_CPUS: 83
+# Mem in MB
+CON_MEMORY: 24576
+# Disk in GB
+CON_DISK_SIZE: 128
+# VM disk type
+CON_DISK_MODE: "thick"
+
+# Controller Default Password
+AVI_FACTORY_PASSWORD: "58NFaGDJm(PJH0G" #You don't need to change.
+
+# Controller Configuration Details
+DNS_SERVERS: [ 172.16.20.1,172.16.19.1 ]
+NTP_SERVERS: [ '0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org' ]
+NTP_TYPE: "DNS"  #If servers are hostname use type "DNS", if IP use type "V4"
+ADMIN_EMAIL: test_user@internal.lab   
+BACKUP_PASSPHRASE: "AviNetworks123!"
+
+# --------------------------------------------------------------------
+# Enviroment Variables / Controller Deployments
+# Description: You only have to apply variables on the installation type you desire.
+# --------------------------------------------------------------------
+
+# Controller Management Network Setup
+CON_MGMT_PORTGROUP: "port_group_for_controller"
+CON_MGMT_MASK: 255.255.255.0
+CON_DEFAULT_GW: 172.16.20.1
+
+# Vmware vCenter Credentials and Other Parameters
+VCENTER_HOST: "Your_vCenter_FQDN_OR_IP"
+VCENTER_USER: "Your_vCenter_User"
+VCENTER_PASSWORD: "Your_vCenter_Password"
+VMWARE_DATACENTER: "vCenter_Datacenter"
+VMWARE_CLUSTER_NAME: "cluster_name"
+VMWARE_DATASTORE: "Datastore_for_controller"
+CON_FOLDER: "vcenter/folder/for/your/controller"
+OVFTOOL_PATH: "/path/to/ovftool" 
+
+# Controller OVA Image Location
+OVA_PATH: "/path/to/controller-30.2.3-9116.ova"
+
+# --------------------------------------------------------------------
+# Certificat Variables / Controller Deployments
+# Description: Information needed to replace default Portal or SC certs during deployment
+# --------------------------------------------------------------------
+
+# CA root and issuing certs to install to the cluster when INSTALL_CA_CERTS is true
+# Name will be display name in the controller path is path to PEM encoded cert file
+INSTALL_CA_CERTS: true
+CA_CERTS:
+  - name: "Internal CA Root"
+    path: "~/certs/root.cer"
+  - name: "Internal CA Intermediate"
+    path: "~/certs/intermed.cer"
+
+INSTALL_PORTAL_CERT: true
+PORTAL_CERT_NAME: portal-cert #<--- Need to agree on a standard name
+PORTAL_CERT_PATH: "aviportal.hx.local.pfx"
+PORTAL_CERT_PASSPHRASE: "CERT_PASSPHRASE"
+AVI_PORTAL_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
+
+INSTALL_SC_CERT: true
+SC_CERT_NAME: sc-cert #<--- Need to agree on a standard name
+SC_CERT_PATH: "avisc.hx.local.pfx"
+SC_CERT_PASSPHRASE: "CERT_PASSPHRASE"
+AVI_SC_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
+ 
