@@ -36,7 +36,7 @@ CON_DISK_SIZE: 128
 CON_DISK_MODE: "thick"
 
 # Controller Default Password
-AVI_FACTORY_PASSWORD: "58NFaGDJm(PJH0G" #You don't need to change.
+AVI_FACTORY_PASSWORD: "avi_default" #You don't need to change.
 
 # Controller Configuration Details
 DNS_SERVERS: [ 172.16.20.1,172.16.19.1 ]
