@@ -32,7 +32,7 @@
       - avictlconfig
    - name: "Prepare NTP Server List"
      ansible.builtin.set_fact:
-      ntp_list: "{{ ntp_list | default([]) + [{'server': {'type': ntp_type, 'addr': nserver}}] }}"
+      ntp_list: "{{ ntp_list | default([]) + [{'server': {'type': NTP_TYPE, 'addr': nserver}}] }}"
      loop: "{{ NTP_SERVERS }}"
      loop_control:
       loop_var: nserver
@@ -176,7 +176,7 @@
       certificate: "{{ portal_cert_validate.json.certificate }}"
       key: "{{ portal_cert_validate.json.key }}"
       key_params: "{{ portal_cert_validate.json.key_params }}"
-      key_passphrase: "{{ AVI_PORTAL_CERT_PASSPHRASE }}"
+      key_passphrase: "{{ AVI_PORTAL_CERT_PASSPHRASE | default('omit') }}"
       type: SSL_CERTIFICATE_TYPE_SYSTEM
       name: "{{  PORTAL_CERT_NAME }}"
      when: INSTALL_PORTAL_CERT
@@ -222,7 +222,7 @@
       certificate: "{{ sc_cert_validate.json.certificate }}"
       key: "{{ sc_cert_validate.json.key }}"
       key_params: "{{ sc_cert_validate.json.key_params }}"
-      key_passphrase: "{{ AVI_SC_CERT_PASSPHRASE }}"
+      key_passphrase: "{{ AVI_SC_CERT_PASSPHRASE | default('omit') }}"
       type: SSL_CERTIFICATE_TYPE_SYSTEM
       name: "{{ SC_CERT_NAME }}"
      when: INSTALL_SC_CERT
