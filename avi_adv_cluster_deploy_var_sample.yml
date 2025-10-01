@@ -26,7 +26,7 @@ CONTROLLER_IP_3: 172.16.20.53
 CONTROLLER_CLUSTER_NAME: "Cluster_Name"
 
 # Controller Size
-# CPU/Memory/Disk for controller; if not defined, they're 8cpus/24GB/128GB by default
+# CPU/Memory/Disk for controller; if not defined, they're 6cpus/32GB/128GB by default
 CON_NUMBER_OF_CPUS: 6
 # Mem in MB
 CON_MEMORY: 32768
@@ -36,7 +36,7 @@ CON_DISK_SIZE: 128
 CON_DISK_MODE: "thick"
 
 # Controller Default Password
-AVI_FACTORY_PASSWORD: "avi_default" # You don't need to change.
+AVI_FACTORY_PASSWORD: "avi_default" # Available in Broadcom Support Portal.
 
 # Controller Configuration Details
 DNS_SERVERS: [172.16.20.1, 172.16.19.1]
@@ -60,9 +60,9 @@ VCENTER_HOST: "Your_vCenter_FQDN_OR_IP"
 VCENTER_USER: "Your_vCenter_User"
 VCENTER_PASSWORD: "Your_vCenter_Password"
 VMWARE_DATACENTER: "vCenter_Datacenter"
-VMWARE_CLUSTER_NAME: "cluster_name"
-VMWARE_DATASTORE: "Datastore_for_controller"
-CON_FOLDER: "vcenter/folder/for/your/controller"
+VMWARE_CLUSTER_NAME: "vCenter_cluster_Name"
+VMWARE_DATASTORE: "vCenter_Datastore"
+CON_FOLDER: "vCenter_folder/for/your/controller"
 OVFTOOL_PATH: "/path/to/ovftool"
 
 # Controller OVA Image Location
@@ -75,6 +75,7 @@ OVA_PATH: "/path/to/controller-30.2.3-9116.ova"
 
 # CA root and issuing certs to install to the cluster when INSTALL_CA_CERTS is true
 # Name will be display name in the controller path is path to PEM encoded cert file
+# Add as many as needed, playbook will loop through the dict
 INSTALL_CA_CERTS: true
 CA_CERTS:
   - name: "Internal CA Root"
@@ -82,14 +83,19 @@ CA_CERTS:
   - name: "Internal CA Intermediate"
     path: "~/certs/intermed.cer"
 
+# Information to install custom Portal Certificate, set INSTALL_PORTAL_CERT to false to ignore/skip
 INSTALL_PORTAL_CERT: true
-PORTAL_CERT_NAME: portal-cert # <--- Need to agree on a standard name
+PORTAL_CERT_NAME: portal-cert # Display name in AVI for Cert
 PORTAL_CERT_PATH: "aviportal.hx.local.pfx"
 PORTAL_CERT_PASSPHRASE: "CERT_PASSPHRASE"
 AVI_PORTAL_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
 
-INSTALL_SC_CERT: true
-SC_CERT_NAME: sc-cert # <--- Need to agree on a standard name
+# Information to install custom Secure Communications Certificate, set INSTALL_SC_CERT to true to 
+# *** REVIEW THE RESTRICTIONS SECTION IN THE DOCS BEFORE USING THIS ***
+# https://techdocs.broadcom.com/us/en/vmware-security-load-balancing/avi-load-balancer/avi-load-balancer/30-2/vmware-avi-load-balancer-installation-guide/se-data-plane-architecture-and-packet-flow/nsx-advanced-load-balancer-controller-to-se-communication.html
+
+INSTALL_SC_CERT: FALSE
+SC_CERT_NAME: sc-cert # # Display name in AVI for Cert
 SC_CERT_PATH: "avisc.hx.local.pfx"
 SC_CERT_PASSPHRASE: "CERT_PASSPHRASE"
 AVI_SC_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
