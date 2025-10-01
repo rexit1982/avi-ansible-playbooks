@@ -62,23 +62,34 @@
       con_mgmt_mask: "{{ CON_MGMT_MASK }}"
       con_default_gw: "{{ CON_DEFAULT_GW }}"
      loop: "{{ controller_configuration }}"
+     async: 7200
+     poll: 0
+     register: deploy_results
      tags:
       - avictldeploy
-   - name: Wait for Controllers be ready
-     ansible.builtin.uri:
-      url: "https://{{ item.mgmt_ip }}/api/cluster/runtime"
-      validate_certs: false
-     register: url
-     retries: 120
-     delay: 20
-     until:
-      - "url.json is defined"
-      - "url.json['cluster_state']['state'] in ['CLUSTER_UP_HA_ACTIVE', 'CLUSTER_UP_NO_HA']"
-     ignore_errors: true
-     loop: "{{ controller_configuration }}"
-     tags:
-      - avictldeploy
-      - avictlconfig
+   - name: Wait for all three controller nodes to be deployed
+     ansible.builtin.async_status:
+      jid: "{{ item.ansible_job_id }}"
+     loop: "{{ deploy_results.results }}"
+     register: deploy_final_results
+     until: deploy_final_results.finished
+     retries: 240
+     delay: 30
+#  - name: Wait for Controllers be ready
+#    ansible.builtin.uri:
+#     url: "https://{{ item.mgmt_ip }}/api/cluster/runtime"
+#     validate_certs: false
+#    register: url
+#    retries: 120
+#    delay: 20
+#    until:
+#     - "url.json is defined"
+#     - "url.json['cluster_state']['state'] in ['CLUSTER_UP_HA_ACTIVE', 'CLUSTER_UP_NO_HA']"
+#    ignore_errors: true
+#    loop: "{{ controller_configuration }}"
+#    tags:
+#     - avictldeploy
+#     - avictlconfig
 # Start Configuring Cluster
 # Only update the password and config on the first/primary controller
 # avi_cluster module assumes default password on the controllers to be added.
@@ -167,7 +178,7 @@
    - name: DEBUG Print Portal Cert
      ansible.builtin.debug:
       var: portal_cert_validate
-     when: DEBUG and INSTALL_PORTAL_CERT
+     when: debug and INSTALL_PORTAL_CERT
    - name: Upload/modify a Portal Key and Certificate
      vmware.alb.avi_sslkeyandcertificate:
       controller: "{{ CONTROLLER_IP_1 }}"
@@ -213,7 +224,7 @@
    - name: DEBUG Print SC Cert
      ansible.builtin.debug:
       var: sc_cert_validate
-     when: DEBUG and INSTALL_SC_CERT
+     when: debug and INSTALL_SC_CERT
    - name: Upload/modify a SC Key and Certificate
      vmware.alb.avi_sslkeyandcertificate:
       controller: "{{ CONTROLLER_IP_1 }}"
@@ -242,28 +253,41 @@
 # Cluster other two nodes
    - name: Create controller cluster
      vmware.alb.avi_cluster:
-      username: "admin"
-      password: "{{ avi_admin_pw }}"
-      controller: "{{ controller1.mgmt_ip }}"
-      api_version: "{{ api_version }}"
-      state: present
+      controller: "{{ CONTROLLER_IP_1 }}"
+      username: "{{ AVI_CREDENTIALS.username }}"
+      password: "{{ AVI_CREDENTIALS.password }}"
+      api_version: "{{ AVI_CREDENTIALS.api_version }}"
+      name: "{{ CONTROLLER_CLUSTER_NAME }}"
       tenant_uuid: "admin"
-      name: "{{ ctl_cluster_name }}"
       virtual_ip:
        type: V4
-       addr: "{{ ctl_cluster_vip }}"
+       addr: "{{ CONTROLLER_CLUSTER_IP }}"
       nodes:
-       - name: "{{ controller1.name }}"
+       - name: "{{ CONTROLLER_CLUSTER_NAME + '-ctl01' }}" 
          ip:
           type: V4
-          addr: "{{ controller1.mgmt_ip }}"
-       - name: "{{ controller2.name }}"
+          addr: "{{ CONTROLLER_IP_1 }}"
+       - name: "{{ CONTROLLER_CLUSTER_NAME + '-ctl02' }}"
          ip:
           type: V4
-          addr: "{{ controller2.mgmt_ip }}"
-       - name: "{{ controller3.name }}"
+          addr: "{{ CONTROLLER_IP_2 }}"
+       - name: "{{ CONTROLLER_CLUSTER_NAME + '-ctl03' }}"
          ip:
           type: V4
-          addr: "{{ controller3.mgmt_ip }}"
+          addr: "{{ CONTROLLER_IP_3 }}"
+     tags:
+      - avicreatecluster
+   - name: Verify Cluster Completed
+     ansible.builtin.uri:
+      validate_certs: false
+      url: "{{ 'https://' + CONTROLLER_CLUSTER_IP + '/api/cluster/status'}}"
+      method: GET
+      return_content: yes
+      status_code: 200
+      body_format: json
+     register: result
+     until: result.status == 200 and result.json.cluster_state.state == "CLUSTER_UP_HA_ACTIVE"
+     retries: 600
+     delay: 10
      tags:
       - avicreatecluster
