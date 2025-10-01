@@ -67,7 +67,10 @@
      register: deploy_results
      tags:
       - avictldeploy
-   - name: Wait for all three controller nodes to be deployed
+   - name: Wait for 10 minutes while nodes deploy
+     ansible.builtin.pause:
+      minutes: 10
+   - name: Wait for all three controller nodes to be up
      ansible.builtin.async_status:
       jid: "{{ item.ansible_job_id }}"
      loop: "{{ deploy_results.results }}"
@@ -275,6 +278,10 @@
          ip:
           type: V4
           addr: "{{ CONTROLLER_IP_3 }}"
+     register: cluster_status
+     until: "cluster_status is not failed"
+     retries: 3
+     delay: 10
      tags:
       - avicreatecluster
    - name: Verify Cluster Completed
