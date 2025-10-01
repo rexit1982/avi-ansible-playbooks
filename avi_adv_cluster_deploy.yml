@@ -41,6 +41,7 @@
 # Deploy controller VMs
    - name: Deploy Avi Controller
      vmware.alb.avi_deploy_controller:
+      state: present
       ovftool_path: "{{ OVFTOOL_PATH }}"
       vcenter_host: "{{ VCENTER_HOST }}"
       vcenter_user: "{{ VCENTER_USER }}"
@@ -49,8 +50,8 @@
       con_cluster: "{{ VMWARE_CLUSTER_NAME }}"
       con_ova_path: "{{ OVA_PATH }}"
       con_vm_name: "{{ item.vm_name }}"
-      con_number_of_cpus: "{{ CON_NUMBER_OF_CPUS | default('8') }}"
-      con_memory: "{{ CON_MEMORY | default('24576') }}"
+      con_number_of_cpus: "{{ CON_NUMBER_OF_CPUS | default('6') }}"
+      con_memory: "{{ CON_MEMORY | default('32768') }}"
       con_disk_size: "{{ CON_DISK_SIZE | default('128') }}"
       con_disk_mode: "{{ CON_DISK_MODE | default('thick') }}"
       con_vcenter_folder: "{{ CON_FOLDER }}"

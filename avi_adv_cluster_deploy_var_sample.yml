@@ -27,9 +27,9 @@ CONTROLLER_CLUSTER_NAME: "Cluster_Name"
 
 # Controller Size
 # CPU/Memory/Disk for controller; if not defined, they're 8cpus/24GB/128GB by default
-CON_NUMBER_OF_CPUS: 83
+CON_NUMBER_OF_CPUS: 6
 # Mem in MB
-CON_MEMORY: 24576
+CON_MEMORY: 32768
 # Disk in GB
 CON_DISK_SIZE: 128
 # VM disk type
