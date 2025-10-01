@@ -284,6 +284,9 @@
      delay: 10
      tags:
       - avicreatecluster
+   - name: Wait for 5 minutes while nodes configure clustering
+     ansible.builtin.pause:
+      minutes: 5
    - name: Verify Cluster Completed
      ansible.builtin.uri:
       validate_certs: false
@@ -294,7 +297,7 @@
       body_format: json
      register: result
      until: result.status == 200 and result.json.cluster_state.state == "CLUSTER_UP_HA_ACTIVE"
-     retries: 600
+     retries: 500
      delay: 10
      tags:
       - avicreatecluster
