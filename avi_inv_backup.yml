@@ -5,6 +5,7 @@
 ##
 ##   Requires pip: avisdk boto3 botocore
 ##   Requires ansible: vmware.alb amazon.aws>= 9.2.0
+##   cli sample: ansible-playbook -i avi_inventory_sample.yml avi_inv_backup.yml
 ##
 ---
 - name: avi_inv_backup.yml
