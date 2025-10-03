@@ -51,7 +51,7 @@
         aws_secret_key: "{{ s3_secret_key }}"
         encrypt: false
         # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
-        validate_certs: no
+        validate_certs: false
         # region: "{{ s3_region_name }}" # A dummy region name might be required by boto3 for some services, even if not used.
       register: s3_upload_result
 
@@ -69,7 +69,7 @@
         aws_access_key: "{{ s3_access_key }}"
         aws_secret_key: "{{ s3_secret_key }}"
         # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
-        validate_certs: no
+        validate_certs: false
         # region: "{{ s3_region_name }}" # A dummy region name might be required by boto3 for some services, even if not used.
         prefix: "{{ controller_cluster_ip }}/"
         object_details:
@@ -116,7 +116,7 @@
         aws_secret_key: "{{ s3_secret_key }}"
         encrypt: false
         # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
-        validate_certs: no
+        validate_certs: false
         # region: "{{ s3_region_name }}" # A dummy region name might be required by boto3 for some services, even if not used.
       loop: "{{ old_s3_objects }}"
       when:

@@ -1,0 +1,218 @@
+##
+##   Filename: avi_inv_backup_tasks.yml
+##   Desc: Include_tasks file to allow looping a block.  Keeps the main playbook running if an individual item from the srouce list fails.
+##   Called By: avi_inv_backup.yml
+##   Requires pip: avisdk boto3 botocore
+##   Requires ansible: vmware.alb amazon.aws>= 9.2.0
+##
+
+- name: AVI Config Backup Task Block
+  block:
+   - name: Generate empty facts
+     ansible.builtin.set_fact:
+       old_s3_objects: []
+
+   - name: Generate backup file name
+     ansible.builtin.set_fact:
+       backup_file: "{{ hostvars[avi_ctrl]['cluster_vip'] }}_{{ short_timestamp }}.{{ hostvars[avi_ctrl]['backup_file_ext'] }}"
+
+   - name: Export AVI Controller configuration
+     vmware.alb.avi_api_session:
+       controller: "{{ hostvars[avi_ctrl]['cluster_vip'] }}"
+       username: "{{ hostvars[avi_ctrl]['backup_user'] }}"
+       password: "{{ hostvars[avi_ctrl]['backup_password'] }}"
+       http_method: get
+       path: "configuration/export"
+       params:
+         full_system: true
+     register: avi_export_result
+
+   # S3 Backup
+
+   - name: S3 BACKUP - Construct the S3 object key (path within the bucket)
+     ansible.builtin.set_fact:
+       s3_object_key: "{{ hostvars[avi_ctrl]['cluster_vip'] }}/{{ backup_file }}"
+     when:
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+
+   - name: S3 BACKUP - Put content to S3-compatible object store
+     amazon.aws.s3_object:
+       bucket: "{{ hostvars[avi_ctrl]['backup_s3_bucket_name'] }}"
+       object: "{{ s3_object_key }}"
+       content_base64: "{{ avi_export_result.obj | to_nice_json | b64encode }}"
+       mode: put # Use 'put' for simple file upload
+       endpoint_url: "{{ hostvars[avi_ctrl]['backup_s3_endpoint_url'] }}" # Crucial for non-AWS S3-compatible services
+       aws_access_key: "{{ hostvars[avi_ctrl]['backup_s3_access_key'] }}"
+       aws_secret_key: "{{ hostvars[avi_ctrl]['backup_s3_secret_key'] }}"
+       encrypt: false
+       # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
+       validate_certs: false
+       # region: "{{ hostvars[avi_ctrl]['backup_s3_region_name'] }}" # A dummy region name might be required by boto3 for some services, even if not used.
+     register: s3_upload_result
+     when:
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+
+   - name: S3 BACKUP - Display S3 upload result
+     ansible.builtin.debug:
+       msg: "Saved backup successfully to '{{ hostvars[avi_ctrl]['backup_s3_endpoint_url'] }}/{{ hostvars[avi_ctrl]['backup_s3_bucket_name'] }}/{{ s3_object_key }}'."
+     when:
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+       - s3_upload_result is success
+
+   # S3 Cleanup
+
+   - name: S3 CLEANUP - Get objects in S3 bucket
+     amazon.aws.s3_object_info:
+       bucket_name: "{{ hostvars[avi_ctrl]['backup_s3_bucket_name'] }}"
+       endpoint_url: "{{ hostvars[avi_ctrl]['backup_s3_endpoint_url'] }}" # Crucial for non-AWS S3-compatible services
+       aws_access_key: "{{ hostvars[avi_ctrl]['backup_s3_access_key'] }}"
+       aws_secret_key: "{{ hostvars[avi_ctrl]['backup_s3_secret_key'] }}"
+       # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
+       validate_certs: false
+       # region: "{{ hostvars[avi_ctrl]['backup_s3_region_name'] }}" # A dummy region name might be required by boto3 for some services, even if not used.
+       prefix: "{{ hostvars[avi_ctrl]['cluster_vip'] }}/"
+       object_details:
+         object_attributes: true
+         attributes_list:
+           - "ObjectSize"
+     register: s3_objects_list
+     when:
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+       - hostvars[avi_ctrl]['backup_s3_cleanup']
+       - s3_upload_result is success
+
+   - name: S3 CLEANUP - DEBUG - Display s3 items
+     ansible.builtin.debug:
+       msg: "{{ s3_objects_list }}"
+     when:
+       - hostvars[avi_ctrl]['backup_debug']
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+       - hostvars[avi_ctrl]['backup_s3_cleanup']
+       - s3_upload_result is success
+
+   - name: S3 CLEANUP - Build old objects list
+     ansible.builtin.set_fact:
+       old_s3_objects: "{{ old_s3_objects + [item.object_name] }}"
+     loop: "{{ s3_objects_list.object_info }}"
+     when:
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+       - hostvars[avi_ctrl]['backup_s3_cleanup']
+       - s3_upload_result is success
+       - (current_time | to_datetime('%Y-%m-%dT%H:%M:%S%z') - item.object_data.last_modified | to_datetime('%Y-%m-%dT%H:%M:%S%z')).days > hostvars[avi_ctrl]['backup_days_old']
+
+   - name: S3 CLEANUP - DEBUG - Display old s3 item list
+     ansible.builtin.debug:
+       msg: "{{ old_s3_objects }}"
+     when:
+       - hostvars[avi_ctrl]['backup_debug']
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+       - hostvars[avi_ctrl]['backup_s3_cleanup']
+       - s3_upload_result is success
+
+   - name: S3 CLEANUP - Delete aged out backup file
+     amazon.aws.s3_object:
+       bucket: "{{ hostvars[avi_ctrl]['backup_s3_bucket_name'] }}"
+       object: "{{ item }}"
+       mode: delobj
+       endpoint_url: "{{ hostvars[avi_ctrl]['backup_s3_endpoint_url'] }}" # Crucial for non-AWS S3-compatible services
+       aws_access_key: "{{ hostvars[avi_ctrl]['backup_s3_access_key'] }}"
+       aws_secret_key: "{{ hostvars[avi_ctrl]['backup_s3_secret_key'] }}"
+       encrypt: false
+       # Optional: If your local S3 service uses self-signed certificates and you want to ignore validation:
+       validate_certs: false
+       # region: "{{ hostvars[avi_ctrl]['backup_s3_region_name'] }}" # A dummy region name might be required by boto3 for some services, even if not used.
+     loop: "{{ old_s3_objects }}"
+     when:
+       - hostvars[avi_ctrl]['backup_s3_enabled']
+       - hostvars[avi_ctrl]['backup_s3_cleanup']
+       - s3_upload_result is success
+       - not hostvars[avi_ctrl]['backup_dry_run']
+
+   # Local Backup
+
+   - name: LOCAL BACKUP - Construct the full backup file path
+     ansible.builtin.set_fact:
+       full_backup_path: "{{ hostvars[avi_ctrl]['backup_local_directory'] }}/{{ hostvars[avi_ctrl]['cluster_vip'] }}/{{ backup_file }}"
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+
+   - name: LOCAL BACKUP - Create backup directory if needed
+     ansible.builtin.file:
+       path: "{{ hostvars[avi_ctrl]['backup_local_directory'] }}/{{ hostvars[avi_ctrl]['cluster_vip'] }}"
+       state: directory
+       mode: '0755'
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+
+   - name: LOCAL BACKUP - Save the exported configuration to a local file
+     ansible.builtin.copy:
+       content: "{{ avi_export_result.obj | to_nice_json }}"
+       dest: "{{ full_backup_path }}"
+       mode: '0644' # Read/write for owner, read-only for group/others
+     delegate_to: localhost
+     register: local_backup_result
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+
+   - name: LOCAL BACKUP - DEBUG Display local backup result
+     ansible.builtin.debug:
+       msg: "{{ local_backup_result }}"
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+       - hostvars[avi_ctrl]['backup_debug']
+
+   - name: LOCAL BACKUP - Display local backup success message
+     ansible.builtin.debug:
+       msg: "AVI configuration backed up locally to {{ full_backup_path }}"
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+       - local_backup_result.size > 0
+
+   # Local File Cleanup
+
+   - name: LOCAL CLEANUP - Collect list of backup files
+     ansible.builtin.find:
+       paths: "{{ hostvars[avi_ctrl]['backup_local_directory'] }}/{{ hostvars[avi_ctrl]['cluster_vip'] }}"
+       file_type: file
+       recurse: false
+       age: "{{ hostvars[avi_ctrl]['backup_days_old'] }}d"
+     register: old_local_backup_files
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+       - hostvars[avi_ctrl]['backup_local_cleanup']
+       - local_backup_result.size > 0
+
+   - name: LOCAL CLEANUP - DEBUG - Display date
+     ansible.builtin.debug:
+       msg: "{{ hostvars[avi_ctrl]['backup_days_old'] }}d"
+     when:
+       - hostvars[avi_ctrl]['backup_debug']
+       - hostvars[avi_ctrl]['backup_local_enabled']
+       - hostvars[avi_ctrl]['backup_local_cleanup']
+       - local_backup_result.size > 0
+
+
+   - name: LOCAL CLEANUP - DEBUG - Display old backup files
+     ansible.builtin.debug:
+       msg: "{{ old_local_backup_files }}"
+     when:
+       - hostvars[avi_ctrl]['backup_debug']
+       - hostvars[avi_ctrl]['backup_local_enabled']
+       - hostvars[avi_ctrl]['backup_local_cleanup']
+       - local_backup_result.size > 0
+
+   - name: LOCAL CLEANUP - Delete old local backups
+     ansible.builtin.file:
+       path: "{{ item.path }}"
+       state: absent
+     loop: "{{ old_local_backup_files.files }}"
+     when:
+       - hostvars[avi_ctrl]['backup_local_enabled']
+       - hostvars[avi_ctrl]['backup_local_cleanup']
+       - not hostvars[avi_ctrl]['backup_dry_run']
+       - local_backup_result.size > 0
+
+  rescue:
+   - name: Block Rescue
+     ansible.builtin.debug:
+      msg: 'ERROR BACKING UP {{ avi_ctrl }}'

@@ -1,0 +1,33 @@
+##
+##   Filename: avi_inv_play.yml
+##   Desc: Backup avi controller configuration to S3 object storage and/or local file.
+##         Optional backup cleanup by age of files.
+##
+##   Requires pip: avisdk boto3 botocore
+##   Requires ansible: vmware.alb amazon.aws>= 9.2.0
+##
+---
+- name: avi_inv_backup.yml
+  hosts: localhost
+  connection: local
+
+  gather_facts: false
+#  environment:
+#    PYTHONWARNINGS: "ignore:Unverified HTTPS request"
+  tasks:
+    - name: Gather date_time facts
+      ansible.builtin.setup:
+        gather_subset:
+          - date_time
+
+    - name: Generate timestamps
+      ansible.builtin.set_fact:
+        current_time: "{{ ansible_date_time.iso8601 }}"
+        short_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+        
+    - name:  
+      ansible.builtin.include_tasks: avi_inv_backup_tasks.yml
+      loop: "{{ groups['avi_controllers'] }}"
+      loop_control:
+       loop_var: avi_ctrl
+

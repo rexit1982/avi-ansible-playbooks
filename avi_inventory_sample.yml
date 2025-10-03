@@ -4,38 +4,66 @@ avi_controllers:
     dns_servers: [ 172.16.20.1 ]
     ntp_servers: [ '0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org' ]
     ntp_type: "DNS"  #If servers are hostname use type "DNS", if IP use type "V4" 
-    #Default Resource allocation for controllers. (S - 6/32/512GB, L - 16/48/1.4TB, XL 16/64/1.75TB)
-    num_cpu: 6
-    mem_size: 32768
-    disk_size: 512
-    disk_mode: "thin"
+    api_version: 22.1.6
+    backup_user: "admin"
+    backup_password: "password"
+    backup_debug: true
+    backup_dry_run: false
+    backup_file_ext: "json"
+    backup_days_old: 2
+    backup_s3_enabled: true
+    backup_s3_cleanup: true
+    backup_s3_endpoint_url: "https://s3:9000"
+    backup_s3_bucket_name: "avibucket"
+    backup_s3_access_key: "minioadmin"
+    backup_s3_secret_key: "minioadmin"
+    backup_s3_region_name: "EAST"
+    backup_local_enabled: true
+    backup_local_cleanup: true
+    backup_local_directory: "/tmp/avi_backups"
+      
+    
   children:
     avi_prod_controllers:
       vars:
+       backup_days_old: 3
       hosts:
-        dc1prd1:
-          cluster_name: "TestCluster"
+        aviprdcl01:
+          cluster_name: "aviprdcl01"
           cluster_vip: "172.16.20.50"
           node1:
-            name: "prdcon1"
             ip: "172.16.20.51"
           node2:
-            name: "prdcon2"
             ip: "172.16.20.52"
           node3:
-            name: "prdcon3"
             ip: "172.16.20.53"
+        aviprdcl02:
+          cluster_name: "aviprdcl02"
+          cluster_vip: "172.16.20.55"
+          node1:
+            ip: "172.16.20.56"
+          node2:
+            ip: "172.16.20.57"
+          node3:
+            ip: "172.16.20.58"
     avi_dev_controllers:
       vars:
       hosts:
-        dc1dev1:
-          vip:
+        avidevcl03:
+          cluster_name: "avidevcl03"
+          cluster_vip: "172.16.20.50"
           node1:
-            name:
-            ip:
+            ip: "172.16.20.51"
           node2:
-            name:
-            ip:
+            ip: "172.16.20.52"
           node3:
-            name:
-            ip:        
+            ip: "172.16.20.53"
+        avidevcl04:
+          cluster_name: "avidevcl04"
+          cluster_vip: "172.16.20.55"
+          node1:
+            ip: "172.16.20.56"
+          node2:
+            ip: "172.16.20.57"
+          node3:
+            ip: "172.16.20.58"
