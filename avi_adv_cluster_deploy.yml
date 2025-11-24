@@ -78,24 +78,6 @@
      until: deploy_final_results.finished
      retries: 240
      delay: 30
-#  - name: Wait for Controllers be ready
-#    ansible.builtin.uri:
-#     url: "https://{{ item.mgmt_ip }}/api/cluster/runtime"
-#     validate_certs: false
-#    register: url
-#    retries: 120
-#    delay: 20
-#    until:
-#     - "url.json is defined"
-#     - "url.json['cluster_state']['state'] in ['CLUSTER_UP_HA_ACTIVE', 'CLUSTER_UP_NO_HA']"
-#    ignore_errors: true
-#    loop: "{{ controller_configuration }}"
-#    tags:
-#     - avictldeploy
-#     - avictlconfig
-# Start Configuring Cluster
-# Only update the password and config on the first/primary controller
-# avi_cluster module assumes default password on the controllers to be added.
    - name: Update the admin user password
      vmware.alb.avi_useraccount:
       controller: "{{ CONTROLLER_IP_1 }}"
@@ -115,6 +97,7 @@
       api_version: "{{ AVI_CREDENTIALS.api_version }}"
       state: present
       welcome_workflow_complete: true
+      disable_swagger: true
       default_license_tier: ENTERPRISE
       ntp_configuration:
        ntp_servers: "{{ ntp_list }}"
