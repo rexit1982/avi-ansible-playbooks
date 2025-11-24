@@ -97,7 +97,7 @@
       api_version: "{{ AVI_CREDENTIALS.api_version }}"
       state: present
       welcome_workflow_complete: true
-      disable_swagger: true
+      disable_swagger: "{{ DISABLE_SWAGGER }}"
       default_license_tier: ENTERPRISE
       ntp_configuration:
        ntp_servers: "{{ ntp_list }}"
