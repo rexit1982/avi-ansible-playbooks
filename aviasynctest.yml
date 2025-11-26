@@ -40,7 +40,7 @@
 
     - name: DEBUG Print pool_results
       ansible.builtin.debug:
-       var: pool_results.results[0].obj.results[0].uuid
+       var: pool_results
 
     - name: Add servers to pool1 with 22.1.6
       vmware.alb.avi_api_session:
@@ -56,7 +56,7 @@
               - ip: 
                   addr: 2.2.2.2
                   type: V4
-      register: patch_result
+      
 
     - name: Add servers to pool1 with 22.1.6
       vmware.alb.avi_api_session:
@@ -72,40 +72,8 @@
               - ip: 
                   addr: 6.6.6.6
                   type: V4
-      register: patch_result
-
-    - name: Add servers to pool1 with 30.2.1
-      vmware.alb.avi_api_session:
-        avi_credentials: "{{ avi_credentials2 }}"
-        http_method: patch
-        path: "pool/{{ pool_results.results[0].obj.results[0].uuid }}?async_mode"
-        data:
-          add:
-            servers:
-              - ip:
-                  addr: 3.3.3.3
-                  type: V4
-              - ip: 
-                  addr: 4.4.4.4
-                  type: V4
-      register: patch_result
-
-    - name: Add servers to pool1 with 30.2.1
-      vmware.alb.avi_api_session:
-        avi_credentials: "{{ avi_credentials2 }}"
-        http_method: patch
-        path: "pool/{{ pool_results.results[0].obj.results[0].uuid }}?async_mode"
-        data:
-          add:
-            servers:
-              - ip:
-                  addr: 3.3.3.3
-                  type: V4
-              - ip: 
-                  addr: 4.4.4.4
-                  type: V4
-      register: patch_result
       
+
     - name: Add servers to pool1 with 30.2.1
       vmware.alb.avi_api_session:
         avi_credentials: "{{ avi_credentials2 }}"
@@ -120,7 +88,22 @@
               - ip: 
                   addr: 4.4.4.4
                   type: V4
-      register: patch_result
+      
+
+    - name: Add servers to pool1 with 30.2.1
+      vmware.alb.avi_api_session:
+        avi_credentials: "{{ avi_credentials2 }}"
+        http_method: patch
+        path: "pool/{{ pool_results.results[0].obj.results[0].uuid }}?async_mode"
+        data:
+          add:
+            servers:
+              - ip:
+                  addr: 7.7.7.7
+                  type: V4
+              - ip: 
+                  addr: 8.8.8.8
+                  type: V4
 
     - name: Add servers to pool2 with 30.2.1
       vmware.alb.avi_api_session:
@@ -136,7 +119,7 @@
               - ip: 
                   addr: 2.2.2.2
                   type: V4
-      register: patch_result
+      
 
     - name: Add servers to pool2 with 30.2.1
       vmware.alb.avi_api_session:
@@ -152,40 +135,8 @@
               - ip: 
                   addr: 6.6.6.6
                   type: V4
-      register: patch_result
-
-    - name: Add servers to pool2 with 30.2.1
-      vmware.alb.avi_api_session:
-        avi_credentials: "{{ avi_credentials2 }}"
-        http_method: patch
-        path: "pool/{{ pool_results.results[1].obj.results[0].uuid }}?async_mode"
-        data:
-          add:
-            servers:
-              - ip:
-                  addr: 3.3.3.3
-                  type: V4
-              - ip: 
-                  addr: 4.4.4.4
-                  type: V4
-      register: patch_result
-
-    - name: Add servers to pool2 with 30.2.1
-      vmware.alb.avi_api_session:
-        avi_credentials: "{{ avi_credentials2 }}"
-        http_method: patch
-        path: "pool/{{ pool_results.results[1].obj.results[0].uuid }}?async_mode"
-        data:
-          add:
-            servers:
-              - ip:
-                  addr: 3.3.3.3
-                  type: V4
-              - ip: 
-                  addr: 4.4.4.4
-                  type: V4
-      register: patch_result
       
+
     - name: Add servers to pool2 with 30.2.1
       vmware.alb.avi_api_session:
         avi_credentials: "{{ avi_credentials2 }}"
@@ -200,7 +151,22 @@
               - ip: 
                   addr: 4.4.4.4
                   type: V4
-      register: patch_result
+      
+
+    - name: Add servers to pool2 with 30.2.1
+      vmware.alb.avi_api_session:
+        avi_credentials: "{{ avi_credentials2 }}"
+        http_method: patch
+        path: "pool/{{ pool_results.results[1].obj.results[0].uuid }}?async_mode"
+        data:
+          add:
+            servers:
+              - ip:
+                  addr: 7.7.7.7
+                  type: V4
+              - ip: 
+                  addr: 8.8.8.8
+                  type: V4
 
     - name: Add servers to pool3 with 22.1.6
       vmware.alb.avi_api_session:
@@ -216,7 +182,7 @@
               - ip: 
                   addr: 2.2.2.2
                   type: V4
-      register: patch_result
+      
 
     - name: Add servers to pool3 with 22.1.6
       vmware.alb.avi_api_session:
@@ -232,40 +198,8 @@
               - ip: 
                   addr: 6.6.6.6
                   type: V4
-      register: patch_result
-
-    - name: Add servers to pool3 with 22.1.6
-      vmware.alb.avi_api_session:
-        avi_credentials: "{{ avi_credentials }}"
-        http_method: patch
-        path: "pool/{{ pool_results.results[2].obj.results[0].uuid }}?async_mode"
-        data:
-          add:
-            servers:
-              - ip:
-                  addr: 3.3.3.3
-                  type: V4
-              - ip: 
-                  addr: 4.4.4.4
-                  type: V4
-      register: patch_result
-
-    - name: Add servers to pool3 with 22.1.6
-      vmware.alb.avi_api_session:
-        avi_credentials: "{{ avi_credentials }}"
-        http_method: patch
-        path: "pool/{{ pool_results.results[2].obj.results[0].uuid }}?async_mode"
-        data:
-          add:
-            servers:
-              - ip:
-                  addr: 3.3.3.3
-                  type: V4
-              - ip: 
-                  addr: 4.4.4.4
-                  type: V4
-      register: patch_result
       
+
     - name: Add servers to pool3 with 22.1.6
       vmware.alb.avi_api_session:
         avi_credentials: "{{ avi_credentials }}"
@@ -280,4 +214,19 @@
               - ip: 
                   addr: 4.4.4.4
                   type: V4
-      register: patch_result
+      
+
+    - name: Add servers to pool3 with 22.1.6
+      vmware.alb.avi_api_session:
+        avi_credentials: "{{ avi_credentials }}"
+        http_method: patch
+        path: "pool/{{ pool_results.results[2].obj.results[0].uuid }}?async_mode"
+        data:
+          add:
+            servers:
+              - ip:
+                  addr: 7.7.7.7
+                  type: V4
+              - ip: 
+                  addr: 8.8.8.8
+                  type: V4
