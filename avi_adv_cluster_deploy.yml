@@ -97,7 +97,6 @@
       api_version: "{{ AVI_CREDENTIALS.api_version }}"
       state: present
       welcome_workflow_complete: true
-      disable_swagger: "{{ DISABLE_SWAGGER }}"
       default_license_tier: ENTERPRISE
       ntp_configuration:
        ntp_servers: "{{ ntp_list }}"
@@ -105,6 +104,19 @@
        server_list: "{{ dns_list }}"
      tags:
       - avictlconfig
+   - name: Disable Swagger
+     vmware.alb.avi_systemconfiguration:
+      controller: "{{ CONTROLLER_IP_1 }}"
+      username: "{{ AVI_CREDENTIALS.username }}"
+      password: "{{ AVI_CREDENTIALS.password }}"
+      api_version: "{{ AVI_CREDENTIALS.api_version }}"
+      state: present
+      portal_configuration:
+       disable_swagger: "{{ DISABLE_SWAGGER }}"
+      default_license_tier: ENTERPRISE
+     tags:
+      - avictlconfig
+     when: DISABLE_SWAGGER
    - name: Set Backup Passphrase
      vmware.alb.avi_backupconfiguration:
       controller: "{{ CONTROLLER_IP_1 }}"
