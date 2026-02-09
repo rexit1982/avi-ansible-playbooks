@@ -1,0 +1,121 @@
+##
+##   Filename: avi_cluster_deploy.yml
+##   Desc: Generic AVI cluster deployment and minimal config playbook.
+##   Requires pip: avisdk
+##   Requires ansible: vmware.alb 
+##   Requires bin: ovftool
+##
+---
+- hosts: localhost
+  connection: local
+  collections: 
+    - vmware.alb
+  vars_files:
+   - avi_single_deploy_var.yml
+  gather_facts: false
+  
+  tasks:
+   - set_fact:
+        dns_list: "{{ dns_list | default([]) + [{'type': 'V4', 'addr': dserver }] }}"
+     loop: "{{ dns_servers }}"
+     loop_control:
+        loop_var: dserver
+     name: "Prepare DNS Server List"
+     tags:
+       - avictlconfig
+
+   - set_fact:
+        ntp_list: "{{ ntp_list | default([]) + [{'server': {'type': ntp_type, 'addr': nserver }}] }}"
+     loop: "{{ ntp_servers }}"
+     loop_control:
+        loop_var: nserver
+     name: "Prepare NTP Server List"
+     tags:
+       - avictlconfig
+
+   - name: Deploy Avi Controllers
+     vmware.alb.avi_deploy_controller:
+        state: present
+        ovftool_path: '{{ ovftool_path }}'
+        vcenter_host: '{{ vcenter.vcenter_url }}'
+        vcenter_user: '{{ vcenter.username }}'
+        vcenter_password: '{{ vcenter.password }}'
+        con_datacenter: '{{ datacenter }}'
+        con_cluster: '{{ cluster }}'
+        con_datastore: '{{ datastore }}'
+        con_disk_mode: '{{ disk_mode }}'
+        con_mgmt_network: '{{ mgmt_network }}'
+        con_ova_path: '{{ ova_path }}'
+        con_power_on: '{{ power_on }}'
+        con_vcenter_folder: '{{ vcenter_folder }}'
+        #con_disk_size: '{{ disk_size }}'
+        con_vm_name: '{{ item.name }}'
+        con_mgmt_ip: '{{ item.mgmt_ip }}'
+        con_mgmt_mask: '{{ netmask}}'
+        con_default_gw: '{{ default_gw }}'
+    # no_log: true
+     loop: 
+      - "{{ controller1 }}"
+     tags:
+        - avictldeploy
+   
+   - name: Wait for Controllers be ready
+     uri:
+       url: "https://{{ item.mgmt_ip }}/api/cluster/runtime"
+       validate_certs: false
+     register: url
+     retries: 120
+     delay: 20
+     until:
+       - "url.json is defined"
+       - "url.json['cluster_state']['state'] in ['CLUSTER_UP_HA_ACTIVE', 'CLUSTER_UP_NO_HA']"
+     ignore_errors: yes
+     loop: 
+      - "{{ controller1 }}"
+     tags:
+        - avictldeploy
+        - avictlconfig
+
+#Only update the password and config on the first/primary controller
+#avi_cluster module assumes default password on the controllers to be added.   
+   - name: Update the admin user password
+     vmware.alb.avi_useraccount:
+       api_version: "{{ api_version }}"
+       username: "admin"
+       password: "{{ avi_admin_pw }}"
+       controller: "{{ controller1.mgmt_ip }}"
+       old_password: "{{ default_avi_pw }}"
+       force_change: false
+     tags:
+       - avictlpassword
+       - avictlconfig
+       - avictlwait
+
+   - name: Initial controller system config
+     vmware.alb.avi_systemconfiguration:
+       username: "admin"
+       password: "{{ avi_admin_pw }}"
+       controller: "{{ controller1.mgmt_ip }}"
+       api_version: "{{ api_version }}"
+       state: present
+       welcome_workflow_complete: true
+       default_license_tier: ENTERPRISE
+       ntp_configuration:
+         ntp_servers: "{{ ntp_list }}"
+       dns_configuration:
+         server_list: "{{ dns_list }}"
+     tags:
+      - avictlconfig
+   
+   - name: Set Backup Passphrase
+     avi_backupconfiguration:
+       username: "admin"
+       password: "{{ avi_admin_pw }}"
+       controller: "{{ controller1.mgmt_ip }}"
+       api_version: "{{ api_version }}"
+       name: Backup-Configuration
+       backup_passphrase: "{{ avi_backup_pass }}"
+       upload_to_remote_host: false
+     tags:
+      - avictlpassword
+      - avictlconfig

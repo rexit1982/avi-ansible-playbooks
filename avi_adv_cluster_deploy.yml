@@ -201,6 +201,7 @@
       portal_configuration:
        sslkeyandcertificate_refs:
         - "{{ '/api/sslkeyandcertificate?name=' + PORTAL_CERT_NAME }}"
+      when: INSTALL_PORTAL_CERT
 
 # Validate, upload and configure SC Cert if enabled
    - name: Validate SC Certs
@@ -248,6 +249,7 @@
        sslkeyandcertificate_refs:
         - "{{ '/api/sslkeyandcertificate?name=' + SC_CERT_NAME }}"
      when: INSTALL_SC_CERT
+
 # Cluster other two nodes
    - name: Create controller cluster
      vmware.alb.avi_cluster:
