@@ -46,7 +46,7 @@
 
     - name: Generate backup file name
       ansible.builtin.set_fact:
-        backup_file: "{{ controller_cluster_ip }}_{{ short_timestamp }}.{{ backup_file_extension }}"
+        backup_file: "{{ controller_cluster_ip }}-{{ avi_version }}_{{ short_timestamp }}.{{ backup_file_extension }}"
 
     - name: Export AVI Controller configuration
       vmware.alb.avi_api_session:
