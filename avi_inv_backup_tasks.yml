@@ -12,9 +12,34 @@
      ansible.builtin.set_fact:
        old_s3_objects: []
 
+   - name: Fetch AVI Controller version
+     vmware.alb.avi_api_session:
+       controller: "{{ hostvars[avi_ctrl]['cluster_vip'] }}"
+       username: "{{ hostvars[avi_ctrl]['backup_user'] }}"
+       password: "{{ hostvars[avi_ctrl]['backup_password'] }}"
+       http_method: get
+       path: "cluster/version"
+     register: avi_controller_version
+
+   - name: DEBUG - Display controller version info
+     ansible.builtin.debug:
+      msg: "{{ avi_controller_version }}"
+     when:
+       - hostvars[avi_ctrl]['backup_debug']
+
+   - name: Set version variables
+     ansible.builtin.set_fact:
+       avi_version: "{{ [avi_controller_version.obj.Version, avi_controller_version.obj.patch | default('')] | select('truthy') | join('-') }}"
+
+   - name: DEBUG - Full version
+     ansible.builtin.debug:
+       msg: "{{ avi_version }}"
+     when:
+       - hostvars[avi_ctrl]['backup_debug']
+   
    - name: Generate backup file name
      ansible.builtin.set_fact:
-       backup_file: "{{ hostvars[avi_ctrl]['cluster_vip'] }}_{{ short_timestamp }}.{{ hostvars[avi_ctrl]['backup_file_ext'] }}"
+       backup_file: "{{ hostvars[avi_ctrl]['cluster_vip'] }}-{{ avi_version }}_{{ short_timestamp }}.{{ hostvars[avi_ctrl]['backup_file_ext'] }}"
 
    - name: Export AVI Controller configuration
      vmware.alb.avi_api_session:

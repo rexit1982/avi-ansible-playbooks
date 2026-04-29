@@ -21,6 +21,29 @@
         short_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
         old_s3_objects: []
 
+    - name: Fetch AVI Controller version
+      vmware.alb.avi_api_session:
+        avi_credentials: "{{ avi_credentials }}"
+        http_method: get
+        path: "cluster/version"
+      register: avi_controller_version
+
+    - name: DEBUG - Display controller version info
+      ansible.builtin.debug:
+        msg: "{{ avi_controller_version }}"
+      when:
+        - debug
+
+    - name: Set version variables
+      ansible.builtin.set_fact:
+        avi_version: "{{ [avi_controller_version.obj.Version, avi_controller_version.obj.patch | default('')] | select('truthy') | join('-') }}"
+
+    - name: DEBUG - Full version
+      ansible.builtin.debug:
+        msg: "{{ avi_version }}"
+      when:
+        - debug
+
     - name: Generate backup file name
       ansible.builtin.set_fact:
         backup_file: "{{ controller_cluster_ip }}_{{ short_timestamp }}.{{ backup_file_extension }}"
