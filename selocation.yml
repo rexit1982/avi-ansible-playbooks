@@ -1,0 +1,126 @@
+##
+##   Filename: selocation.yml
+##   Desc: Fetch the location of SEs on VMware Hosts/clusters
+##   Requires pip: avisdk
+##   Requires ansible: vmware.alb 
+##
+---
+- name: selocation.yml
+  hosts: localhost
+  connection: local
+#  gather_facts: false
+  vars_files:
+    selocation_var.yml
+  tasks:
+    - name: Check Credentials with version fetch
+      vmware.alb.avi_api_version:
+        avi_credentials: '{{ avi_credentials}}'      
+
+    - name: Get hosts 
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: get
+        path: 'vimgrhostruntime'
+        params:
+          fields: 'name,url,cluster_name,type'
+      register: avi_hosts
+      #failed_when: avi_hosts.obj.count < 1
+      
+    - name: DEBUG - AVI hosts
+      ansible.builtin.debug:
+        msg: '{{ avi_hosts }}'
+      when: debug
+
+    - name: Get SEGs 
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: get
+        path: 'serviceenginegroup'
+        params:
+          fields: 'name,url'
+      register: avi_segs
+      #failed_when: avi_hosts.obj.count < 1
+      
+    - name: DEBUG - AVI segs
+      ansible.builtin.debug:
+        msg: '{{ avi_segs }}'
+      when: debug
+
+    - name: Get SEs
+      vmware.alb.avi_api_session:
+        avi_credentials: '{{ avi_credentials}}'
+        http_method: get
+        path: 'serviceengine'
+        params:
+          fields: 'name,se_group_ref,host_ref'
+      register: avi_ses
+      #failed_when: avi_ses.obj.count < 1
+      
+    - name: DEBUG - AVI SEs
+      ansible.builtin.debug:
+        msg: '{{ avi_ses }}'
+      when: debug
+ 
+    - name: Generate Host Lookup 
+      ansible.builtin.set_fact:
+        host_dict: '{{ host_dict | default({})| combine({ item.url: item }) }}'
+      loop: '{{ avi_hosts.obj.results }}'
+      loop_control:
+        label: '{{ item.name }}'
+      
+    - name: DEBUG - Host_dict
+      ansible.builtin.debug:
+        msg: '{{ host_dict }}'
+      when: debug
+      
+    - name: Generate SEG Lookup 
+      ansible.builtin.set_fact:
+        seg_dict: '{{ seg_dict | default({})| combine({ item.url: item }) }}'
+      loop: '{{ avi_segs.obj.results }}'
+      loop_control:
+        label: '{{ item.name }}'
+      
+    - name: DEBUG - SEG_dict
+      ansible.builtin.debug:
+        msg: '{{ seg_dict }}'
+      when: debug
+
+    - name: Build SE list
+      ansible.builtin.set_fact:
+        se_inventory: >-
+          {{ 
+            se_inventory | default([]) + 
+            [{
+              'se_name': item.name,
+              'seg_name': seg_dict.get(item.get('se_group_ref'), {}).get('name', 'Unknown seg'),
+              'host_name': host_dict.get(item.get('host_ref'), {}).get('name', 'No Host Found'),
+              'cluster_name': host_dict.get(item.get('host_ref'), {}).get('cluster_name', 'Unknown Cluster'),
+              'host_type': host_dict.get(item.get('host_ref'), {}).get('type', 'Unknown')
+            }] 
+          }}
+      loop: "{{ avi_ses.obj.results }}"
+      loop_control:
+        label: '{{ item.name }}'
+       
+    - name: Show the final mapping
+      ansible.builtin.debug:
+        var: se_inventory
+      when: debug
+
+    - name: Generate SEG to Cluster Count Report
+      ansible.builtin.set_fact:
+        seg_cluster_breakdown: >-
+          {%- set report = {} -%}
+          {%- for seg in (se_inventory | map(attribute='seg_name') | unique) -%}
+            {%- set cluster_counts = {} -%}
+            {%- set filtered_ses = se_inventory | selectattr('seg_name', 'equalto', seg) | list -%}
+            {%- for group in filtered_ses | groupby('cluster_name') -%}
+              {%- set _ = cluster_counts.update({ group.0: group.1 | length }) -%}
+            {%- endfor -%}
+            {%- set _ = report.update({ seg: cluster_counts }) -%}
+          {%- endfor -%}
+          {{ report }}
+
+    - name: View the detailed Cluster Breakdown per SEG
+      ansible.builtin.debug:
+        var: seg_cluster_breakdown
