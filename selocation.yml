@@ -8,82 +8,79 @@
 - name: selocation.yml
   hosts: localhost
   connection: local
-#  gather_facts: false
+  gather_facts: false
   vars_files:
-    selocation_var.yml
+    - selocation_var.yml
   tasks:
     - name: Check Credentials with version fetch
       vmware.alb.avi_api_version:
-        avi_credentials: '{{ avi_credentials}}'      
+        avi_credentials: "{{ avi_credentials }}"      
 
     - name: Get hosts 
       vmware.alb.avi_api_session:
-        avi_credentials: '{{ avi_credentials}}'
+        avi_credentials: "{{ avi_credentials }}"
         http_method: get
         path: 'vimgrhostruntime'
         params:
           fields: 'name,url,cluster_name,type'
       register: avi_hosts
-      #failed_when: avi_hosts.obj.count < 1
       
     - name: DEBUG - AVI hosts
       ansible.builtin.debug:
-        msg: '{{ avi_hosts }}'
-      when: debug
+        msg: "{{ avi_hosts }}"
+      when: debug | default(false)
 
     - name: Get SEGs 
       vmware.alb.avi_api_session:
-        avi_credentials: '{{ avi_credentials}}'
+        avi_credentials: "{{ avi_credentials }}"
         http_method: get
         path: 'serviceenginegroup'
         params:
           fields: 'name,url'
       register: avi_segs
-      #failed_when: avi_hosts.obj.count < 1
       
     - name: DEBUG - AVI segs
       ansible.builtin.debug:
-        msg: '{{ avi_segs }}'
-      when: debug
+        msg: "{{ avi_segs }}"
+      when: debug | default(false)
 
     - name: Get SEs
       vmware.alb.avi_api_session:
-        avi_credentials: '{{ avi_credentials}}'
+        avi_credentials: "{{ avi_credentials }}"
         http_method: get
         path: 'serviceengine'
         params:
           fields: 'name,se_group_ref,host_ref'
       register: avi_ses
-      #failed_when: avi_ses.obj.count < 1
       
     - name: DEBUG - AVI SEs
       ansible.builtin.debug:
-        msg: '{{ avi_ses }}'
-      when: debug
+        msg: "{{ avi_ses }}"
+      when: debug | default(false)
  
     - name: Generate Host Lookup 
       ansible.builtin.set_fact:
-        host_dict: '{{ host_dict | default({})| combine({ item.url: item }) }}'
-      loop: '{{ avi_hosts.obj.results }}'
+        host_dict: "{{ host_dict | default({}) | combine({ item.url: item }) }}"
+      loop: "{{ avi_hosts.obj.results | default([]) }}"
       loop_control:
-        label: '{{ item.name }}'
+        label: "{{ item.name }}"
       
     - name: DEBUG - Host_dict
       ansible.builtin.debug:
-        msg: '{{ host_dict }}'
-      when: debug
+        msg: "{{ host_dict }}"
+      when: debug | default(false)
       
     - name: Generate SEG Lookup 
       ansible.builtin.set_fact:
-        seg_dict: '{{ seg_dict | default({})| combine({ item.url: item }) }}'
-      loop: '{{ avi_segs.obj.results }}'
+        seg_dict: "{{ seg_dict | default({}) | combine({ item.url: item }) }}"
+      loop: "{{ avi_segs.obj.results | default([]) }}"
       loop_control:
-        label: '{{ item.name }}'
+        label: "{{ item.name }}"
       
     - name: DEBUG - SEG_dict
       ansible.builtin.debug:
-        msg: '{{ seg_dict }}'
-      when: debug
+        msg: "{{ seg_dict }}"
+      when: debug | default(false)
 
     - name: Build SE list
       ansible.builtin.set_fact:
@@ -98,14 +95,14 @@
               'host_type': host_dict.get(item.get('host_ref'), {}).get('type', 'Unknown')
             }] 
           }}
-      loop: "{{ avi_ses.obj.results }}"
+      loop: "{{ avi_ses.obj.results | default([]) }}"
       loop_control:
-        label: '{{ item.name }}'
-       
+        label: "{{ item.name }}"
+        
     - name: Show the final mapping
       ansible.builtin.debug:
         var: se_inventory
-      when: debug
+      when: debug | default(false)
 
     - name: Generate SEG to Cluster Count Report
       ansible.builtin.set_fact:
