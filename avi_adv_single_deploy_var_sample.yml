@@ -38,7 +38,7 @@ AVI_FACTORY_PASSWORD: "58NFaGDJm(PJH0G" #You don't need to change.
 
 # Controller Configuration Details
 DISABLE_SWAGGER: false
-DISABLE_SWAGGER: false
+DISABLE_CTRL_RSA: false
 DNS_SERVERS: [172.16.20.1,172.16.19.1]
 NTP_SERVERS: ['0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org']
 NTP_TYPE: "DNS"  # If servers are hostname use type "DNS", if IP use type "V4"

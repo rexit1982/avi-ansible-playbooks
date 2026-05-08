@@ -210,7 +210,7 @@
       portal_configuration:
        sslkeyandcertificate_refs:
         - "{{ '/api/sslkeyandcertificate?name=' + PORTAL_CERT_NAME }}"
-      when: INSTALL_PORTAL_CERT
+     when: INSTALL_PORTAL_CERT
 
 # Validate, upload and configure SC Cert if enabled
    - name: Validate SC Certs

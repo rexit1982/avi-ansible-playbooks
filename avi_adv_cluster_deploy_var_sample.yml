@@ -70,7 +70,7 @@ CON_FOLDER: "vCenter_folder/for/your/controller"
 OVFTOOL_PATH: "/path/to/ovftool"
 
 # Controller OVA Image Location
-OVA_PATH: "/path/to/controller-30.2.3-9116.ova"
+OVA_PATH: "ping "
 
 # --------------------------------------------------------------------
 # Certificat Variables / Controller Deployments
