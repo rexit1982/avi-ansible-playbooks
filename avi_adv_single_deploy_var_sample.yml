@@ -1,0 +1,110 @@
+---
+# --------------------------------------------------------------------
+# Management Variables
+# Description: This are variables used for any type of ansible deployment.
+# --------------------------------------------------------------------
+debug: true
+# Cluster IP for Avi Controller
+CONTROLLER_CLUSTER_IP: 172.16.20.22
+
+# Controller Credentials
+AVI_CREDENTIALS:
+  controller: "{{ CONTROLLER_CLUSTER_IP }}" # This can be either cluster ip or the ip of the leader controller.
+  username: "admin"
+  password: "<password>"
+  api_version: "22.1.6"
+
+# --------------------------------------------------------------------
+# Required Variables / Controller Deployments
+# Description: This are the main variables required for controller deployments.
+# --------------------------------------------------------------------
+
+# Controller Name and IP Addresses
+CONTROLLER_IP_1: 172.16.20.22
+CONTROLLER_CLUSTER_NAME: "avicluster01"
+
+# Controller Size
+# CPU/Memory/Disk for controller; if not defined, they're 6cpus/32GB/128GB by default
+CON_NUMBER_OF_CPUS: 6
+# Mem in MB
+CON_MEMORY: 32768
+# Disk in GB
+CON_DISK_SIZE: 128
+# VM disk type
+CON_DISK_MODE: "thin"
+
+# Controller Default Password
+AVI_FACTORY_PASSWORD: "58NFaGDJm(PJH0G" #You don't need to change.
+
+# Controller Configuration Details
+DISABLE_SWAGGER: false
+DISABLE_SWAGGER: false
+DNS_SERVERS: [172.16.20.1,172.16.19.1]
+NTP_SERVERS: ['0.us.pool.ntp.org', '1.us.pool.ntp.org', '3.us.pool.ntp.org']
+NTP_TYPE: "DNS"  # If servers are hostname use type "DNS", if IP use type "V4"
+ADMIN_EMAIL: test_user@internal.lab
+BACKUP_PASSPHRASE: "06scionxA"
+
+# --------------------------------------------------------------------
+# Enviroment Variables / Controller Deployments
+# Description: You only have to apply variables on the installation type you desire.
+# --------------------------------------------------------------------
+
+# Controller Management Network Setup
+CON_MGMT_PORTGROUP: "SvrStat-501-172.16.20.0_24"
+CON_MGMT_MASK: 255.255.255.0
+CON_DEFAULT_GW: 172.16.20.1
+
+# Vmware vCenter Credentials and Other Parameters
+VCENTER_HOST: "vc01.int.rexit.org"
+VCENTER_USER: "administrator@vsphere.local"
+VCENTER_PASSWORD: "Sdcar&w>sQ@pdn2FKd"
+VMWARE_DATACENTER: "vSAN-Datacenter"
+VMWARE_CLUSTER_NAME: "vSAN-Cluster"
+VMWARE_DATASTORE: "vm-0"
+CON_FOLDER: "tstcon"
+OVFTOOL_PATH: "~/ovftool" 
+
+# Controller OVA Image Location
+OVA_PATH: "/mnt/c/Users/rexit/Downloads/controller-31.2.1-9148.ova"
+
+# --------------------------------------------------------------------
+# Certificat Variables / Controller Deployments
+# Description: Information needed to replace default Portal or SC certs during deployment
+# --------------------------------------------------------------------
+
+# CA root and issuing certs to install to the cluster when INSTALL_CA_CERTS is true
+# Name will be display name in the controller path is path to PEM encoded cert file
+# Add as many as needed, playbook will loop through the dict
+INSTALL_CA_CERTS: true
+CA_CERTS:
+  - name: "Internal CA Root"
+    path: "~/certs/root.cer"
+  - name: "Internal CA Intermediate"
+    path: "~/certs/intermed.cer"
+  - name: "Internal CA2 Root"
+    path: "~/certs/root_ca.crt"
+  - name: "Internal CA2 Intermediate"
+    path: "~/certs/intermediate_ca.crt"
+  - name: "Internal CA384 Root"
+    path: "~/certs/root_ca-384.crt"
+  - name: "Internal CA384 Intermediate"
+    path: "~/certs/intermediate_ca-384.crt"
+
+# Information to install custom Portal Certificate, set INSTALL_PORTAL_CERT to false to ignore/skip
+INSTALL_PORTAL_CERT: false
+PORTAL_CERT_NAME: portal-cert #<--- Need to agree on a standard name
+PORTAL_CERT_PATH: "~/certs/aviportal.pfx"
+PORTAL_CERT_PASSPHRASE: "06scionxA"
+#AVI_PORTAL_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
+
+# Information to install custom Secure Communications Certificate, set INSTALL_SC_CERT to true to 
+# *** REVIEW THE RESTRICTIONS SECTION IN THE DOCS BEFORE USING THIS ***
+# https://techdocs.broadcom.com/us/en/vmware-security-load-balancing/avi-load-balancer/avi-load-balancer/30-2/vmware-avi-load-balancer-installation-guide/se-data-plane-architecture-and-packet-flow/nsx-advanced-load-balancer-controller-to-se-communication.html
+
+INSTALL_SC_CERT: true
+SC_CERT_NAME: sc-cert #<--- Need to agree on a standard name
+SC_CERT_PATH: "~/certs/aviecsc384-384.pfx"
+SC_CERT_PASSPHRASE: "06scionxA"
+#AVI_SC_CERT_PASSPHRASE: "AVI_CERT_PASSPHRASE"
+ 
