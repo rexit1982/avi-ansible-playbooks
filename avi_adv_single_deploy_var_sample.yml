@@ -58,7 +58,7 @@ CON_DEFAULT_GW: 172.16.20.1
 # Vmware vCenter Credentials and Other Parameters
 VCENTER_HOST: "vc01.int.rexit.org"
 VCENTER_USER: "administrator@vsphere.local"
-VCENTER_PASSWORD: "Sdcar&w>sQ@pdn2FKd"
+VCENTER_PASSWORD: "<password>"
 VMWARE_DATACENTER: "vSAN-Datacenter"
 VMWARE_CLUSTER_NAME: "vSAN-Cluster"
 VMWARE_DATASTORE: "vm-0"
@@ -66,7 +66,7 @@ CON_FOLDER: "tstcon"
 OVFTOOL_PATH: "~/ovftool" 
 
 # Controller OVA Image Location
-OVA_PATH: "/mnt/c/Users/rexit/Downloads/controller-31.2.1-9148.ova"
+OVA_PATH: "/path/to/controller-30.2.3-9116.ova"
 
 # --------------------------------------------------------------------
 # Certificat Variables / Controller Deployments
