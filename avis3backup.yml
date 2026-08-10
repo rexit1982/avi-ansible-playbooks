@@ -36,11 +36,14 @@
 
     - name: Set version variables
       ansible.builtin.set_fact:
+        avi_system_version: "{{ avi_controller_version.obj.Version }}"
         avi_version: "{{ [avi_controller_version.obj.Version, avi_controller_version.obj.patch | default('')] | select('truthy') | join('-') }}"
-
-    - name: DEBUG - Full version
+    
+    - name: DEBUG - Display parsed version variables
       ansible.builtin.debug:
-        msg: "{{ avi_version }}"
+        msg:
+          system_version: "{{ avi_system_version }}"
+          full_version: "{{ avi_version }}"
       when:
         - debug
 
@@ -48,13 +51,31 @@
       ansible.builtin.set_fact:
         backup_file: "{{ controller_cluster_ip }}-{{ avi_version }}_{{ short_timestamp }}.{{ backup_file_extension }}"
 
+    - name: DEBUG - Backup File Name
+      ansible.builtin.debug:
+        msg: "{{ backup_file }}"
+      when:
+        - debug
+
+    - name: Setup export params
+      ansible.builtin.set_fact:
+        export_params: "{{ 
+          { 'full_system': true } | 
+          combine({ 'bundle_mode': true } if (avi_system_version is version('31.1.1', '>=')) else {}) 
+          }}"
+
+    - name: DEBUG - export_params
+      ansible.builtin.debug:
+        msg: "{{ export_params }}"
+      when:
+        - debug
+
     - name: Export AVI Controller configuration
       vmware.alb.avi_api_session:
         avi_credentials: "{{ avi_credentials }}"
         http_method: get
         path: "configuration/export"
-        params:
-          full_system: true
+        params: "{{ export_params }}"
       register: avi_export_result
 
 # S3 Backup
